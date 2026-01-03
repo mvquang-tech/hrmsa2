@@ -178,11 +178,17 @@ export default function LeavesPage() {
     const newFormData = { ...formData, [field]: value };
     
     // Initialize sessions for new date range
+    // Mặc định check cả Buổi sáng và Buổi chiều cho tất cả các ngày
     if (newFormData.startDate && newFormData.endDate) {
-      newFormData.sessions = initializeSessionsForDateRange(
-        newFormData.startDate,
-        newFormData.endDate
-      );
+      const dates = generateDateRange(newFormData.startDate, newFormData.endDate);
+      const sessions: LeaveSessions = {};
+      
+      dates.forEach(date => {
+        // Mặc định check cả morning và afternoon
+        sessions[date] = ['morning', 'afternoon'];
+      });
+      
+      newFormData.sessions = sessions;
     } else {
       newFormData.sessions = {};
     }
