@@ -15,10 +15,13 @@ interface User {
 interface AuthContextType {
   user: User | null;
   token: string | null;
+  permissions: string[];
   login: (username: string, password: string) => Promise<void>;
   logout: () => void;
   isAuthenticated: boolean;
   isLoading: boolean;
+  hasPermission: (permission: string) => boolean;
+  hasAnyPermission: (permissions: string[]) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -26,6 +29,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
+  const [permissions, setPermissions] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
@@ -38,14 +42,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     
     const storedToken = localStorage.getItem('token');
     const storedUser = localStorage.getItem('user');
+    const storedPermissions = localStorage.getItem('permissions');
     if (storedToken && storedUser) {
       try {
         setToken(storedToken);
         setUser(JSON.parse(storedUser));
+        setPermissions(storedPermissions ? JSON.parse(storedPermissions) : []);
       } catch (err) {
         console.error('Error parsing stored user data:', err);
         localStorage.removeItem('token');
         localStorage.removeItem('user');
+        localStorage.removeItem('permissions');
       }
     }
     setIsLoading(false);
@@ -65,16 +72,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     setToken(data.data.token);
     setUser(data.data.user);
+    setPermissions(data.data.permissions || []);
     localStorage.setItem('token', data.data.token);
     localStorage.setItem('user', JSON.stringify(data.data.user));
+    localStorage.setItem('permissions', JSON.stringify(data.data.permissions || []));
   };
 
   const logout = () => {
     setToken(null);
     setUser(null);
+    setPermissions([]);
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    localStorage.removeItem('permissions');
     router.push('/login');
+  };
+
+  // Check if user has specific permission
+  const hasPermission = (permission: string): boolean => {
+    // Admin has all permissions
+    if (user?.role === 'admin') return true;
+    return permissions.includes(permission);
+  };
+
+  // Check if user has any of the specified permissions
+  const hasAnyPermission = (perms: string[]): boolean => {
+    if (user?.role === 'admin') return true;
+    return perms.some(p => permissions.includes(p));
   };
 
   // Show loading while checking auth state
@@ -91,10 +115,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       value={{
         user,
         token,
+        permissions,
         login,
         logout,
         isAuthenticated: !!token,
         isLoading,
+        hasPermission,
+        hasAnyPermission,
       }}
     >
       {children}

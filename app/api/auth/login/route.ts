@@ -29,6 +29,24 @@ export async function POST(request: NextRequest) {
       return createErrorResponse('Tên đăng nhập hoặc mật khẩu không đúng', 401);
     }
 
+    // Get user permissions from RBAC tables
+    let permissions: string[] = [];
+    
+    // Admin has all permissions
+    if (user.role === 'admin') {
+      const allPerms = await query('SELECT code FROM permissions', []);
+      permissions = Array.isArray(allPerms) ? allPerms.map((p: any) => p.code) : [];
+    } else {
+      // Get permissions based on user's roles
+      const userPerms = await query(`
+        SELECT DISTINCT p.code FROM permissions p
+        INNER JOIN role_permissions rp ON rp.permissionId = p.id
+        INNER JOIN user_roles ur ON ur.roleId = rp.roleId
+        WHERE ur.userId = ?
+      `, [user.id]);
+      permissions = Array.isArray(userPerms) ? userPerms.map((p: any) => p.code) : [];
+    }
+
     const token = generateToken({
       userId: user.id,
       username: user.username,
@@ -45,11 +63,13 @@ export async function POST(request: NextRequest) {
         role: user.role,
         employeeId: user.employeeId,
       },
+      permissions,
     });
   } catch (error: any) {
     if (error.name === 'ZodError') {
       return createErrorResponse(error.errors[0].message, 400);
     }
+    console.error('Login error:', error);
     return createErrorResponse(error.message || 'Lỗi đăng nhập', 500);
   }
 }

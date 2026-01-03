@@ -1,21 +1,26 @@
 import mysql from 'mysql2/promise';
 
-let pool: mysql.Pool | null = null;
+// Use global variable to persist pool across Next.js hot reloads
+declare global {
+  var mysqlPool: mysql.Pool | undefined;
+}
 
 export function getDbPool(): mysql.Pool {
-  if (!pool) {
-    pool = mysql.createPool({
+  if (!global.mysqlPool) {
+    global.mysqlPool = mysql.createPool({
       host: process.env.DB_HOST || 'localhost',
       port: parseInt(process.env.DB_PORT || '3306'),
       user: process.env.DB_USER || 'root',
       password: process.env.DB_PASSWORD || '123456',
       database: process.env.DB_NAME || 'hrm_db',
       waitForConnections: true,
-      connectionLimit: 10,
+      connectionLimit: 5, // Reduced to prevent too many connections
       queueLimit: 0,
+      enableKeepAlive: true,
+      keepAliveInitialDelay: 0,
     });
   }
-  return pool;
+  return global.mysqlPool;
 }
 
 export async function query(sql: string, params?: any[]): Promise<any> {

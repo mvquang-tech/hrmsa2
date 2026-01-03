@@ -47,7 +47,7 @@ interface Overtime {
 }
 
 export default function OvertimePage() {
-  const { isAuthenticated, token, user, isLoading } = useAuth();
+  const { isAuthenticated, token, user, isLoading, hasPermission } = useAuth();
   const router = useRouter();
   const [overtimes, setOvertimes] = useState<Overtime[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -61,6 +61,12 @@ export default function OvertimePage() {
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Check permissions from RBAC
+  const canCreate = hasPermission('overtime.create');
+  const canUpdate = hasPermission('overtime.update');
+  const canDelete = hasPermission('overtime.delete');
+  const canApprove = hasPermission('overtime.approve');
 
   useEffect(() => {
     if (isLoading) return;
@@ -248,11 +254,21 @@ export default function OvertimePage() {
 
   if (!isAuthenticated) return null;
 
-  const canEdit = (ot: Overtime) => {
-    if (user?.role === UserRole.EMPLOYEE) {
-      return ot.status === 'pending' && ot.employeeId === user.employeeId;
+  // Check if user can edit/delete specific overtime request
+  const canEditItem = (ot: Overtime) => {
+    // User can edit their own pending requests, or if they have update permission
+    if (ot.employeeId === user?.employeeId && ot.status === 'pending') {
+      return true;
     }
-    return true;
+    return canUpdate;
+  };
+
+  const canDeleteItem = (ot: Overtime) => {
+    // User can delete their own pending requests, or if they have delete permission
+    if (ot.employeeId === user?.employeeId && ot.status === 'pending') {
+      return true;
+    }
+    return canDelete;
   };
 
   return (
@@ -260,9 +276,11 @@ export default function OvertimePage() {
       <Box>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
           <Typography variant="h4">Ngoài giờ</Typography>
-          <Button variant="contained" startIcon={<AddIcon />} onClick={() => handleOpen()}>
-            Tạo đơn ngoài giờ
-          </Button>
+          {canCreate && (
+            <Button variant="contained" startIcon={<AddIcon />} onClick={() => handleOpen()}>
+              Tạo đơn ngoài giờ
+            </Button>
+          )}
         </Box>
 
         <TableContainer component={Paper}>
@@ -295,12 +313,12 @@ export default function OvertimePage() {
                       />
                     </TableCell>
                     <TableCell align="right">
-                      {canEdit(ot) && (
+                      {canEditItem(ot) && (
                         <IconButton size="small" onClick={() => handleOpen(ot)}>
                           <EditIcon />
                         </IconButton>
                       )}
-                      {user?.role !== UserRole.EMPLOYEE && ot.status === 'pending' && (
+                      {canApprove && ot.status === 'pending' && (
                         <>
                           <Button
                             size="small"
@@ -318,7 +336,7 @@ export default function OvertimePage() {
                           </Button>
                         </>
                       )}
-                      {canEdit(ot) && (
+                      {canDeleteItem(ot) && (
                         <IconButton size="small" onClick={() => handleDelete(ot.id)}>
                           <DeleteIcon />
                         </IconButton>

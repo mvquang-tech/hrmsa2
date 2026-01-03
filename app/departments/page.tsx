@@ -36,7 +36,7 @@ interface Department {
 }
 
 export default function DepartmentsPage() {
-  const { isAuthenticated, token, isLoading } = useAuth();
+  const { isAuthenticated, token, isLoading, hasPermission } = useAuth();
   const router = useRouter();
   const [departments, setDepartments] = useState<Department[]>([]);
   const [open, setOpen] = useState(false);
@@ -44,6 +44,11 @@ export default function DepartmentsPage() {
   const [formData, setFormData] = useState({ name: '', code: '', description: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Check permissions from RBAC
+  const canCreate = hasPermission('departments.create');
+  const canUpdate = hasPermission('departments.update');
+  const canDelete = hasPermission('departments.delete');
 
   useEffect(() => {
     // Wait for auth loading to complete
@@ -163,9 +168,11 @@ export default function DepartmentsPage() {
       <Box>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
           <Typography variant="h4">Phòng ban</Typography>
-          <Button variant="contained" startIcon={<AddIcon />} onClick={() => handleOpen()}>
-            Thêm phòng ban
-          </Button>
+          {canCreate && (
+            <Button variant="contained" startIcon={<AddIcon />} onClick={() => handleOpen()}>
+              Thêm phòng ban
+            </Button>
+          )}
         </Box>
 
         <TableContainer component={Paper}>
@@ -194,12 +201,16 @@ export default function DepartmentsPage() {
                     <TableCell>{dept.name}</TableCell>
                     <TableCell>{dept.description || '-'}</TableCell>
                     <TableCell align="right">
-                      <IconButton size="small" onClick={() => handleOpen(dept)}>
-                        <EditIcon />
-                      </IconButton>
-                      <IconButton size="small" onClick={() => handleDelete(dept.id)}>
-                        <DeleteIcon />
-                      </IconButton>
+                      {canUpdate && (
+                        <IconButton size="small" onClick={() => handleOpen(dept)}>
+                          <EditIcon />
+                        </IconButton>
+                      )}
+                      {canDelete && (
+                        <IconButton size="small" onClick={() => handleDelete(dept.id)}>
+                          <DeleteIcon />
+                        </IconButton>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))

@@ -33,17 +33,18 @@ import { useAuth } from '@/hooks/useAuth';
 
 const drawerWidth = 240;
 
+// Menu items with required permissions
 const menuItems = [
-  { text: 'Dashboard', icon: <DashboardIcon />, path: '/' },
-  { text: 'Nhân sự', icon: <PeopleIcon />, path: '/employees' },
-  { text: 'Phòng ban', icon: <BusinessIcon />, path: '/departments' },
-  { text: 'Ngoài giờ', icon: <AccessTimeIcon />, path: '/overtime' },
-  { text: 'Nghỉ phép', icon: <EventIcon />, path: '/leaves' },
+  { text: 'Dashboard', icon: <DashboardIcon />, path: '/', permission: 'dashboard.view' },
+  { text: 'Nhân sự', icon: <PeopleIcon />, path: '/employees', permission: 'employees.view' },
+  { text: 'Phòng ban', icon: <BusinessIcon />, path: '/departments', permission: 'departments.view' },
+  { text: 'Ngoài giờ', icon: <AccessTimeIcon />, path: '/overtime', permission: 'overtime.view' },
+  { text: 'Nghỉ phép', icon: <EventIcon />, path: '/leaves', permission: 'leaves.view' },
 ];
 
 const adminMenuItems = [
-  { text: 'Vai trò', icon: <SecurityIcon />, path: '/admin/roles' },
-  { text: 'Người dùng', icon: <GroupIcon />, path: '/admin/users' },
+  { text: 'Vai trò', icon: <SecurityIcon />, path: '/admin/roles', permission: 'roles.view' },
+  { text: 'Người dùng', icon: <GroupIcon />, path: '/admin/users', permission: 'users.view' },
 ];
 
 export function Layout({ children }: { children: React.ReactNode }) {
@@ -51,9 +52,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const [adminOpen, setAdminOpen] = useState(true);
   const router = useRouter();
   const pathname = usePathname();
-  const { logout, user } = useAuth();
+  const { logout, user, hasPermission, hasAnyPermission } = useAuth();
 
   const isAdmin = user?.role === 'admin';
+  
+  // Filter menu items based on permissions
+  const visibleMenuItems = menuItems.filter(item => hasPermission(item.permission));
+  const visibleAdminItems = adminMenuItems.filter(item => hasPermission(item.permission));
+  const showAdminMenu = isAdmin || visibleAdminItems.length > 0;
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -73,7 +79,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       </Toolbar>
       <Divider />
       <List>
-        {menuItems.map((item) => (
+        {visibleMenuItems.map((item) => (
           <ListItem key={item.text} disablePadding>
             <ListItemButton
               selected={pathname === item.path}
@@ -89,7 +95,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         ))}
       </List>
       
-      {isAdmin && (
+      {showAdminMenu && (
         <>
           <Divider />
           <List>
@@ -104,7 +110,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             </ListItem>
             <Collapse in={adminOpen} timeout="auto" unmountOnExit>
               <List component="div" disablePadding>
-                {adminMenuItems.map((item) => (
+                {visibleAdminItems.map((item) => (
                   <ListItem key={item.text} disablePadding>
                     <ListItemButton
                       sx={{ pl: 4 }}

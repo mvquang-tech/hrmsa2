@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { employeeSchema, paginationSchema } from '@/lib/utils/validation';
-import { createErrorResponse, createSuccessResponse, requireAuth } from '@/lib/middleware/auth';
+import { createErrorResponse, createSuccessResponse, requireAuth, requireRole } from '@/lib/middleware/auth';
 import { paginate } from '@/lib/utils/db-helpers';
-import { Employee } from '@/lib/types';
+import { Employee, UserRole } from '@/lib/types';
 import { formatDate } from '@/lib/utils/db-helpers';
 
 export async function GET(request: NextRequest) {
@@ -13,7 +13,22 @@ export async function GET(request: NextRequest) {
     const params = paginationSchema.parse(Object.fromEntries(searchParams));
 
     const result = await paginate<Employee>('employees', params);
-    return createSuccessResponse(result);
+    
+    // Add hasAccount flag for each employee
+    const employeesWithAccountInfo = await Promise.all(
+      result.data.map(async (emp: any) => {
+        const users = await query('SELECT id FROM users WHERE employeeId = ?', [emp.id]);
+        return {
+          ...emp,
+          hasAccount: Array.isArray(users) && users.length > 0
+        };
+      })
+    );
+
+    return createSuccessResponse({
+      ...result,
+      data: employeesWithAccountInfo
+    });
   } catch (error: any) {
     if (error.message === 'Unauthorized') {
       return createErrorResponse('Unauthorized', 401);
@@ -25,7 +40,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    requireAuth(request);
+    const authUser = requireAuth(request);
+    // Only admin and hr can create employees
+    requireRole(authUser, [UserRole.ADMIN, UserRole.HR]);
     const body = await request.json();
     const validated = employeeSchema.parse(body);
 
@@ -72,6 +89,9 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     if (error.message === 'Unauthorized') {
       return createErrorResponse('Unauthorized', 401);
+    }
+    if (error.message === 'Forbidden') {
+      return createErrorResponse('Bạn không có quyền thực hiện thao tác này', 403);
     }
     if (error.name === 'ZodError') {
       return createErrorResponse(error.errors[0].message, 400);

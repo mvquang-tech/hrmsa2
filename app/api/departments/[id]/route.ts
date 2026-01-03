@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { departmentSchema, idSchema } from '@/lib/utils/validation';
-import { createErrorResponse, createSuccessResponse, requireAuth } from '@/lib/middleware/auth';
+import { createErrorResponse, createSuccessResponse, requireAuth, requireRole } from '@/lib/middleware/auth';
+import { UserRole } from '@/lib/types';
 
 export async function GET(
   request: NextRequest,
@@ -36,7 +37,9 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
-    requireAuth(request);
+    const authUser = requireAuth(request);
+    // Only admin and hr can update departments
+    requireRole(authUser, [UserRole.ADMIN, UserRole.HR]);
     const { id } = idSchema.parse({ id: params.id });
     const body = await request.json();
     const validated = departmentSchema.parse(body);
@@ -65,6 +68,9 @@ export async function PUT(
     if (error.message === 'Unauthorized') {
       return createErrorResponse('Unauthorized', 401);
     }
+    if (error.message === 'Forbidden') {
+      return createErrorResponse('Bạn không có quyền thực hiện thao tác này', 403);
+    }
     if (error.name === 'ZodError') {
       return createErrorResponse(error.errors[0].message, 400);
     }
@@ -78,7 +84,9 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    requireAuth(request);
+    const authUser = requireAuth(request);
+    // Only admin and hr can delete departments
+    requireRole(authUser, [UserRole.ADMIN, UserRole.HR]);
     const { id } = idSchema.parse({ id: params.id });
 
     // Check if has employees
@@ -92,6 +100,9 @@ export async function DELETE(
   } catch (error: any) {
     if (error.message === 'Unauthorized') {
       return createErrorResponse('Unauthorized', 401);
+    }
+    if (error.message === 'Forbidden') {
+      return createErrorResponse('Bạn không có quyền thực hiện thao tác này', 403);
     }
     if (error.name === 'ZodError') {
       return createErrorResponse(error.errors[0].message, 400);

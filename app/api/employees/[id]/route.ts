@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { employeeSchema, idSchema } from '@/lib/utils/validation';
-import { createErrorResponse, createSuccessResponse, requireAuth } from '@/lib/middleware/auth';
+import { createErrorResponse, createSuccessResponse, requireAuth, requireRole } from '@/lib/middleware/auth';
 import { formatDate } from '@/lib/utils/db-helpers';
+import { UserRole } from '@/lib/types';
 
 export async function GET(
   request: NextRequest,
@@ -37,7 +38,9 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
-    requireAuth(request);
+    const authUser = requireAuth(request);
+    // Only admin and hr can update employees
+    requireRole(authUser, [UserRole.ADMIN, UserRole.HR]);
     const { id } = idSchema.parse({ id: params.id });
     const body = await request.json();
     const validated = employeeSchema.parse(body);
@@ -93,6 +96,9 @@ export async function PUT(
     if (error.message === 'Unauthorized') {
       return createErrorResponse('Unauthorized', 401);
     }
+    if (error.message === 'Forbidden') {
+      return createErrorResponse('Bạn không có quyền thực hiện thao tác này', 403);
+    }
     if (error.name === 'ZodError') {
       return createErrorResponse(error.errors[0].message, 400);
     }
@@ -106,7 +112,9 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    requireAuth(request);
+    const authUser = requireAuth(request);
+    // Only admin and hr can delete employees
+    requireRole(authUser, [UserRole.ADMIN, UserRole.HR]);
     const { id } = idSchema.parse({ id: params.id });
 
     await query('DELETE FROM employees WHERE id = ?', [id]);
@@ -114,6 +122,9 @@ export async function DELETE(
   } catch (error: any) {
     if (error.message === 'Unauthorized') {
       return createErrorResponse('Unauthorized', 401);
+    }
+    if (error.message === 'Forbidden') {
+      return createErrorResponse('Bạn không có quyền thực hiện thao tác này', 403);
     }
     if (error.name === 'ZodError') {
       return createErrorResponse(error.errors[0].message, 400);

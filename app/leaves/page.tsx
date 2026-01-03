@@ -49,7 +49,7 @@ interface Leave {
 }
 
 export default function LeavesPage() {
-  const { isAuthenticated, token, user, isLoading } = useAuth();
+  const { isAuthenticated, token, user, isLoading, hasPermission } = useAuth();
   const router = useRouter();
   const [leaves, setLeaves] = useState<Leave[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -64,6 +64,12 @@ export default function LeavesPage() {
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Check permissions from RBAC
+  const canCreate = hasPermission('leaves.create');
+  const canUpdate = hasPermission('leaves.update');
+  const canDelete = hasPermission('leaves.delete');
+  const canApprove = hasPermission('leaves.approve');
 
   useEffect(() => {
     if (isLoading) return;
@@ -263,11 +269,21 @@ export default function LeavesPage() {
 
   if (!isAuthenticated) return null;
 
-  const canEdit = (leave: Leave) => {
-    if (user?.role === UserRole.EMPLOYEE) {
-      return leave.status === 'pending' && leave.employeeId === user.employeeId;
+  // Check if user can edit/delete specific leave request
+  const canEditItem = (leave: Leave) => {
+    // User can edit their own pending requests, or if they have update permission
+    if (leave.employeeId === user?.employeeId && leave.status === 'pending') {
+      return true;
     }
-    return true;
+    return canUpdate;
+  };
+
+  const canDeleteItem = (leave: Leave) => {
+    // User can delete their own pending requests, or if they have delete permission
+    if (leave.employeeId === user?.employeeId && leave.status === 'pending') {
+      return true;
+    }
+    return canDelete;
   };
 
   return (
@@ -275,9 +291,11 @@ export default function LeavesPage() {
       <Box>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
           <Typography variant="h4">Nghỉ phép</Typography>
-          <Button variant="contained" startIcon={<AddIcon />} onClick={() => handleOpen()}>
-            Tạo đơn nghỉ phép
-          </Button>
+          {canCreate && (
+            <Button variant="contained" startIcon={<AddIcon />} onClick={() => handleOpen()}>
+              Tạo đơn nghỉ phép
+            </Button>
+          )}
         </Box>
 
         <TableContainer component={Paper}>
@@ -314,12 +332,12 @@ export default function LeavesPage() {
                       />
                     </TableCell>
                     <TableCell align="right">
-                      {canEdit(leave) && (
+                      {canEditItem(leave) && (
                         <IconButton size="small" onClick={() => handleOpen(leave)}>
                           <EditIcon />
                         </IconButton>
                       )}
-                      {user?.role !== UserRole.EMPLOYEE && leave.status === 'pending' && (
+                      {canApprove && leave.status === 'pending' && (
                         <>
                           <Button
                             size="small"
@@ -337,7 +355,7 @@ export default function LeavesPage() {
                           </Button>
                         </>
                       )}
-                      {canEdit(leave) && (
+                      {canDeleteItem(leave) && (
                         <IconButton size="small" onClick={() => handleDelete(leave.id)}>
                           <DeleteIcon />
                         </IconButton>

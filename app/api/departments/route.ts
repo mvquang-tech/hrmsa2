@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { departmentSchema, paginationSchema } from '@/lib/utils/validation';
-import { createErrorResponse, createSuccessResponse, requireAuth } from '@/lib/middleware/auth';
+import { createErrorResponse, createSuccessResponse, requireAuth, requireRole } from '@/lib/middleware/auth';
 import { paginate } from '@/lib/utils/db-helpers';
-import { Department } from '@/lib/types';
+import { Department, UserRole } from '@/lib/types';
 
 export async function GET(request: NextRequest) {
   try {
@@ -12,7 +12,6 @@ export async function GET(request: NextRequest) {
     const params = paginationSchema.parse(Object.fromEntries(searchParams));
 
     const result = await paginate<Department>('departments', params);
-    console.log('Departments paginate result:', JSON.stringify(result, null, 2));
     return createSuccessResponse(result);
   } catch (error: any) {
     if (error.message === 'Unauthorized') {
@@ -25,7 +24,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    requireAuth(request);
+    const authUser = requireAuth(request);
+    // Only admin and hr can create departments
+    requireRole(authUser, [UserRole.ADMIN, UserRole.HR]);
     const body = await request.json();
     const validated = departmentSchema.parse(body);
 
@@ -46,6 +47,9 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     if (error.message === 'Unauthorized') {
       return createErrorResponse('Unauthorized', 401);
+    }
+    if (error.message === 'Forbidden') {
+      return createErrorResponse('Bạn không có quyền thực hiện thao tác này', 403);
     }
     if (error.name === 'ZodError') {
       return createErrorResponse(error.errors[0].message, 400);
