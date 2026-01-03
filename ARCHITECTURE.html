@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sơ đồ Kiến trúc Dự án HRMS</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+            margin-bottom: 30px;
+        }
+        
+        h2 {
+            color: #34495e;
+            margin-top: 40px;
+            margin-bottom: 20px;
+            padding-left: 10px;
+            border-left: 4px solid #3498db;
+        }
+        
+        h3 {
+            color: #555;
+            margin-top: 30px;
+            margin-bottom: 15px;
+        }
+        
+        .diagram-container {
+            background: #fafafa;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            padding: 20px;
+            margin: 20px 0;
+            overflow-x: auto;
+        }
+        
+        .mermaid {
+            text-align: center;
+            background: white;
+            padding: 20px;
+            border-radius: 4px;
+        }
+        
+        .section {
+            margin-bottom: 50px;
+        }
+        
+        .code-block {
+            background: #282c34;
+            color: #abb2bf;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            margin: 15px 0;
+        }
+        
+        .info-box {
+            background: #e8f4f8;
+            border-left: 4px solid #3498db;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+        
+        ul, ol {
+            margin-left: 20px;
+            margin-bottom: 15px;
+        }
+        
+        li {
+            margin-bottom: 8px;
+        }
+        
+        .toc {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 4px;
+            margin-bottom: 30px;
+        }
+        
+        .toc h3 {
+            margin-top: 0;
+        }
+        
+        .toc ul {
+            list-style: none;
+            margin-left: 0;
+        }
+        
+        .toc a {
+            color: #3498db;
+            text-decoration: none;
+        }
+        
+        .toc a:hover {
+            text-decoration: underline;
+        }
+        
+        @media print {
+            body {
+                background: white;
+            }
+            .container {
+                box-shadow: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏗️ Sơ đồ Kiến trúc Dự án HRMS</h1>
+        
+        <div class="info-box">
+            <strong>Tổng quan:</strong> Hệ thống HRMS (Human Resource Management System) được xây dựng trên nền tảng <strong>Next.js 14</strong> với kiến trúc Full-Stack, sử dụng <strong>MySQL</strong> làm database và <strong>JWT</strong> cho authentication.
+        </div>
+        
+        <div class="toc">
+            <h3>📑 Mục lục</h3>
+            <ul>
+                <li><a href="#overview">1. Kiến trúc Tổng thể</a></li>
+                <li><a href="#structure">2. Cấu trúc Thư mục</a></li>
+                <li><a href="#auth-flow">3. Luồng Xác thực</a></li>
+                <li><a href="#authz-flow">4. Luồng Phân quyền</a></li>
+                <li><a href="#database">5. Kiến trúc Database</a></li>
+                <li><a href="#modules">6. Các Module Chính</a></li>
+                <li><a href="#tech">7. Công nghệ Sử dụng</a></li>
+                <li><a href="#security">8. Security Features</a></li>
+                <li><a href="#performance">9. Performance Optimizations</a></li>
+            </ul>
+        </div>
+        
+        <div class="section" id="overview">
+            <h2>1. Kiến trúc Tổng thể</h2>
+            <div class="diagram-container">
+                <div class="mermaid">
+graph TB
+    subgraph "Client Layer"
+        Browser[Browser/Client]
+    end
+    
+    subgraph "Next.js Application"
+        subgraph "Frontend (React)"
+            Pages[Pages Components]
+            Layout[Layout Component]
+            AuthHook[useAuth Hook]
+            UI[MUI Components]
+        end
+        
+        subgraph "API Layer (Next.js API Routes)"
+            AuthAPI[Auth API<br/>/api/auth/*]
+            DeptAPI[Departments API<br/>/api/departments/*]
+            EmpAPI[Employees API<br/>/api/employees/*]
+            LeaveAPI[Leaves API<br/>/api/leaves/*]
+            OTAPI[Overtime API<br/>/api/overtime/*]
+            AdminAPI[Admin API<br/>/api/admin/*]
+        end
+        
+        subgraph "Middleware & Services"
+            AuthMW[Auth Middleware]
+            RBAC[RBAC Service]
+            Validation[Zod Validation]
+            DBHelper[DB Helpers]
+        end
+        
+        subgraph "Data Access Layer"
+            DBPool[MySQL Connection Pool]
+            Query[Query Functions]
+        end
+    end
+    
+    subgraph "Database (MySQL)"
+        Users[(users)]
+        Employees[(employees)]
+        Departments[(departments)]
+        Leaves[(leaves)]
+        LeaveSessions[(leave_sessions)]
+        Overtime[(overtime)]
+        Roles[(roles)]
+        Permissions[(permissions)]
+        RolePerms[(role_permissions)]
+        UserRoles[(user_roles)]
+    end
+    
+    Browser --> Pages
+    Pages --> Layout
+    Pages --> AuthHook
+    Pages --> UI
+    AuthHook --> AuthAPI
+    
+    Pages --> AuthAPI
+    Pages --> DeptAPI
+    Pages --> EmpAPI
+    Pages --> LeaveAPI
+    Pages --> OTAPI
+    Pages --> AdminAPI
+    
+    AuthAPI --> AuthMW
+    DeptAPI --> AuthMW
+    EmpAPI --> AuthMW
+    LeaveAPI --> AuthMW
+    OTAPI --> AuthMW
+    AdminAPI --> AuthMW
+    
+    AuthMW --> RBAC
+    AuthMW --> Validation
+    AuthMW --> DBHelper
+    
+    DBHelper --> Query
+    Query --> DBPool
+    
+    DBPool --> Users
+    DBPool --> Employees
+    DBPool --> Departments
+    DBPool --> Leaves
+    DBPool --> LeaveSessions
+    DBPool --> Overtime
+    DBPool --> Roles
+    DBPool --> Permissions
+    DBPool --> RolePerms
+    DBPool --> UserRoles
+                </div>
+            </div>
+        </div>
+        
+        <div class="section" id="structure">
+            <h2>2. Cấu trúc Thư mục</h2>
+            <div class="code-block">
+hrmsa2/
+├── app/                          # Next.js App Router
+│   ├── api/                      # API Routes (Backend)
+│   │   ├── auth/                 # Authentication endpoints
+│   │   │   ├── login/route.ts
+│   │   │   └── register/route.ts
+│   │   ├── departments/          # Department management
+│   │   │   ├── route.ts          # GET, POST
+│   │   │   └── [id]/route.ts     # GET, PUT, DELETE
+│   │   ├── employees/            # Employee management
+│   │   │   ├── route.ts
+│   │   │   └── [id]/
+│   │   │       ├── route.ts
+│   │   │       └── account/route.ts
+│   │   ├── leaves/               # Leave management
+│   │   │   ├── route.ts
+│   │   │   └── [id]/route.ts
+│   │   ├── overtime/             # Overtime management
+│   │   │   ├── route.ts
+│   │   │   └── [id]/route.ts
+│   │   └── admin/               # RBAC administration
+│   │       ├── roles/
+│   │       ├── permissions/
+│   │       └── users/
+│   ├── departments/page.tsx     # Department page (Frontend)
+│   ├── employees/page.tsx        # Employee page
+│   ├── leaves/page.tsx           # Leave page
+│   ├── overtime/page.tsx          # Overtime page
+│   ├── admin/                    # Admin pages
+│   │   ├── roles/page.tsx
+│   │   └── users/page.tsx
+│   ├── login/page.tsx            # Login page
+│   ├── page.tsx                  # Dashboard
+│   └── layout.tsx                # Root layout
+│
+├── components/                   # React Components
+│   ├── Layout.tsx                # Main layout with sidebar
+│   └── ThemeProvider.tsx         # MUI theme provider
+│
+├── hooks/                        # React Hooks
+│   └── useAuth.tsx               # Authentication hook
+│
+├── lib/                          # Shared Libraries
+│   ├── db.ts                     # Database connection pool
+│   ├── middleware/
+│   │   └── auth.ts               # Auth & RBAC middleware
+│   ├── types/
+│   │   └── index.ts              # TypeScript types
+│   └── utils/
+│       ├── auth.ts               # JWT & password utilities
+│       ├── validation.ts        # Zod schemas
+│       ├── db-helpers.ts         # Database helpers
+│       └── leave-helpers.ts      # Leave calculation helpers
+│
+├── database/                     # Database Schemas
+│   ├── schema.sql                # Main schema
+│   ├── rbac-schema.sql           # RBAC tables
+│   └── migration-*.sql          # Migration scripts
+│
+└── scripts/                      # Utility Scripts
+    ├── init-db.ts                # Initialize database
+    ├── create-admin.js           # Create admin user
+    └── migrate-*.js              # Migration scripts
+            </div>
+        </div>
+        
+        <div class="section" id="auth-flow">
+            <h2>3. Luồng Xác thực (Authentication Flow)</h2>
+            <div class="diagram-container">
+                <div class="mermaid">
+sequenceDiagram
+    participant Client
+    participant LoginPage
+    participant AuthAPI
+    participant AuthMW
+    participant DB
+    participant useAuth
+
+    Client->>LoginPage: Nhập username/password
+    LoginPage->>AuthAPI: POST /api/auth/login
+    AuthAPI->>DB: Query user by username
+    DB-->>AuthAPI: User data
+    AuthAPI->>DB: Get user permissions (RBAC)
+    DB-->>AuthAPI: Permissions list
+    AuthAPI->>AuthAPI: Generate JWT token
+    AuthAPI-->>LoginPage: { token, user, permissions }
+    LoginPage->>useAuth: login(token, user, permissions)
+    useAuth->>useAuth: Store in localStorage
+    useAuth->>Client: Redirect to dashboard
+                </div>
+            </div>
+        </div>
+        
+        <div class="section" id="authz-flow">
+            <h2>4. Luồng Phân quyền (Authorization Flow)</h2>
+            <div class="diagram-container">
+                <div class="mermaid">
+sequenceDiagram
+    participant Client
+    participant Page
+    participant API
+    participant AuthMW
+    participant RBAC
+    participant DB
+
+    Client->>Page: Request protected page
+    Page->>useAuth: Check authentication
+    useAuth-->>Page: User & permissions
+    Page->>Page: Check hasPermission()
+    Page->>API: API request with JWT
+    API->>AuthMW: requireAuth(request)
+    AuthMW->>AuthMW: Verify JWT token
+    AuthMW->>RBAC: Check permission
+    RBAC->>DB: Query user permissions
+    DB-->>RBAC: Permissions
+    RBAC-->>AuthMW: Has permission?
+    AuthMW-->>API: Authorized
+    API->>DB: Execute query
+    DB-->>API: Data
+    API-->>Page: Response
+    Page-->>Client: Render UI
+                </div>
+            </div>
+        </div>
+        
+        <div class="section" id="database">
+            <h2>5. Kiến trúc Database</h2>
+            <div class="diagram-container">
+                <div class="mermaid">
+erDiagram
+    users ||--o{ user_roles : has
+    users ||--o| employees : "linked to"
+    
+    roles ||--o{ user_roles : assigned
+    roles ||--o{ role_permissions : has
+    
+    permissions ||--o{ role_permissions : assigned
+    
+    departments ||--o{ employees : contains
+    departments ||--o| employees : "managed by"
+    
+    employees ||--o{ leaves : requests
+    employees ||--o{ overtime : requests
+    employees ||--o{ users : "has account"
+    
+    leaves ||--o{ leave_sessions : has
+    leaves ||--o| users : "approved by"
+    
+    users {
+        int id PK
+        string username
+        string email
+        string password
+        enum role
+        int employeeId FK
+    }
+    
+    employees {
+        int id PK
+        string code
+        string firstName
+        string lastName
+        int departmentId FK
+    }
+    
+    departments {
+        int id PK
+        string name
+        string code
+        int managerId FK
+    }
+    
+    leaves {
+        int id PK
+        int employeeId FK
+        enum type
+        date startDate
+        date endDate
+        decimal days
+        text reason
+        enum status
+        int approvedBy FK
+    }
+    
+    leave_sessions {
+        int id PK
+        int leaveId FK
+        date date
+        enum sessionType
+    }
+    
+    overtime {
+        int id PK
+        int employeeId FK
+        date date
+        decimal hours
+        text reason
+        enum status
+        int approvedBy FK
+    }
+    
+    roles {
+        int id PK
+        string code
+        string name
+        boolean isActive
+        boolean isSystem
+    }
+    
+    permissions {
+        int id PK
+        string code
+        string name
+        string module
+    }
+    
+    role_permissions {
+        int roleId FK
+        int permissionId FK
+    }
+    
+    user_roles {
+        int userId FK
+        int roleId FK
+    }
+                </div>
+            </div>
+        </div>
+        
+        <div class="section" id="modules">
+            <h2>6. Các Module Chính</h2>
+            
+            <h3>1. Authentication & Authorization</h3>
+            <ul>
+                <li><strong>JWT-based authentication</strong>: Token được lưu trong localStorage</li>
+                <li><strong>RBAC (Role-Based Access Control)</strong>:
+                    <ul>
+                        <li>Roles: Admin, HR, Manager, Employee</li>
+                        <li>Permissions: Fine-grained permissions per module</li>
+                        <li>Dynamic permission checking</li>
+                    </ul>
+                </li>
+            </ul>
+            
+            <h3>2. Department Management</h3>
+            <ul>
+                <li>CRUD operations</li>
+                <li>Manager assignment</li>
+                <li>Permission-based access control</li>
+            </ul>
+            
+            <h3>3. Employee Management</h3>
+            <ul>
+                <li>CRUD operations</li>
+                <li>Account creation for employees</li>
+                <li>Department linking</li>
+            </ul>
+            
+            <h3>4. Leave Management</h3>
+            <ul>
+                <li>Create leave requests</li>
+                <li>Session-based leave (morning/afternoon)</li>
+                <li>Half-day leave support (0.5 days)</li>
+                <li>Approval workflow</li>
+                <li>Separate <code>leave_sessions</code> table for session tracking</li>
+            </ul>
+            
+            <h3>5. Overtime Management</h3>
+            <ul>
+                <li>Create overtime requests</li>
+                <li>Hours tracking</li>
+                <li>Approval workflow</li>
+            </ul>
+            
+            <h3>6. RBAC Administration</h3>
+            <ul>
+                <li>Role management</li>
+                <li>Permission management</li>
+                <li>User-role assignment</li>
+                <li>Permission-role assignment</li>
+            </ul>
+        </div>
+        
+        <div class="section" id="tech">
+            <h2>7. Công nghệ Sử dụng</h2>
+            
+            <h3>Frontend</h3>
+            <ul>
+                <li><strong>Next.js 14</strong> (App Router)</li>
+                <li><strong>React 18</strong></li>
+                <li><strong>Material-UI (MUI)</strong> v5</li>
+                <li><strong>TypeScript</strong></li>
+                <li><strong>date-fns</strong> (Date manipulation)</li>
+            </ul>
+            
+            <h3>Backend</h3>
+            <ul>
+                <li><strong>Next.js API Routes</strong></li>
+                <li><strong>MySQL 8.0+</strong> (mysql2/promise)</li>
+                <li><strong>JWT</strong> (jsonwebtoken)</li>
+                <li><strong>bcryptjs</strong> (Password hashing)</li>
+                <li><strong>Zod</strong> (Schema validation)</li>
+            </ul>
+            
+            <h3>Database</h3>
+            <ul>
+                <li><strong>MySQL</strong> với InnoDB engine</li>
+                <li>Connection pooling</li>
+                <li>Foreign key constraints</li>
+                <li>Indexes for performance</li>
+            </ul>
+        </div>
+        
+        <div class="section" id="security">
+            <h2>8. Security Features</h2>
+            <ol>
+                <li><strong>Password Hashing</strong>: bcryptjs với salt rounds</li>
+                <li><strong>JWT Tokens</strong>: Secure token generation và validation</li>
+                <li><strong>SQL Injection Prevention</strong>: Prepared statements</li>
+                <li><strong>RBAC</strong>: Fine-grained permission control</li>
+                <li><strong>Input Validation</strong>: Zod schemas cho tất cả inputs</li>
+                <li><strong>CORS</strong>: Next.js built-in CORS handling</li>
+            </ol>
+        </div>
+        
+        <div class="section" id="performance">
+            <h2>9. Performance Optimizations</h2>
+            <ol>
+                <li><strong>Connection Pooling</strong>: MySQL connection pool với limit 5</li>
+                <li><strong>Global Pool</strong>: Singleton pattern để tránh multiple pools</li>
+                <li><strong>Indexes</strong>: Database indexes trên các cột thường query</li>
+                <li><strong>Pagination</strong>: API pagination cho large datasets</li>
+                <li><strong>Client-side Caching</strong>: localStorage cho auth state</li>
+            </ol>
+        </div>
+        
+        <div class="section">
+            <h2>10. Deployment Considerations</h2>
+            <ul>
+                <li>Environment variables: <code>.env.local</code></li>
+                <li>Database migrations: Script-based migrations</li>
+                <li>Build: <code>npm run build</code></li>
+                <li>Production: <code>npm start</code></li>
+                <li>Database connection: Configurable via env vars</li>
+            </ul>
+        </div>
+    </div>
+    
+    <script>
+        mermaid.initialize({ 
+            startOnLoad: true,
+            theme: 'default',
+            flowchart: {
+                useMaxWidth: true,
+                htmlLabels: true,
+                curve: 'basis'
+            },
+            sequence: {
+                diagramMarginX: 50,
+                diagramMarginY: 10,
+                actorMargin: 50,
+                width: 150,
+                height: 65,
+                boxMargin: 10,
+                boxTextMargin: 5,
+                noteMargin: 10,
+                messageMargin: 35,
+                mirrorActors: true,
+                bottomMarginAdj: 1,
+                useMaxWidth: true,
+                rightAngles: false,
+                showSequenceNumbers: false
+            },
+            er: {
+                fontSize: 12,
+                useMaxWidth: true
+            }
+        });
+    </script>
+</body>
+</html>
+
