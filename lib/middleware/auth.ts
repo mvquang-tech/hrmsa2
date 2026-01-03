@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken, JWTPayload } from '../utils/auth';
 import { UserRole } from '../types';
+import { query } from '../db';
 
 export interface AuthRequest extends NextRequest {
   user?: JWTPayload;
@@ -30,6 +31,66 @@ export function requireAuth(request: NextRequest): JWTPayload {
 
 export function requireRole(user: JWTPayload, roles: UserRole[]): void {
   if (!roles.includes(user.role)) {
+    throw new Error('Forbidden');
+  }
+}
+
+/**
+ * Check if user has specific permission (RBAC)
+ * @param userId - User ID
+ * @param permissionCode - Permission code like 'users.create', 'departments.view'
+ */
+export async function hasPermission(userId: number, permissionCode: string): Promise<boolean> {
+  try {
+    const result = await query(`
+      SELECT COUNT(*) as count FROM permissions p
+      INNER JOIN role_permissions rp ON rp.permissionId = p.id
+      INNER JOIN user_roles ur ON ur.roleId = rp.roleId
+      WHERE ur.userId = ? AND p.code = ?
+    `, [userId, permissionCode]);
+    
+    const resultList = Array.isArray(result) ? result : [result];
+    return resultList[0]?.count > 0;
+  } catch (error) {
+    console.error('Error checking permission:', error);
+    return false;
+  }
+}
+
+/**
+ * Get all permissions for a user
+ * @param userId - User ID
+ */
+export async function getUserPermissions(userId: number): Promise<string[]> {
+  try {
+    const result = await query(`
+      SELECT DISTINCT p.code FROM permissions p
+      INNER JOIN role_permissions rp ON rp.permissionId = p.id
+      INNER JOIN user_roles ur ON ur.roleId = rp.roleId
+      WHERE ur.userId = ?
+    `, [userId]);
+    
+    const resultList = Array.isArray(result) ? result : [];
+    return resultList.map((p: any) => p.code);
+  } catch (error) {
+    console.error('Error getting user permissions:', error);
+    return [];
+  }
+}
+
+/**
+ * Require specific permission (throws error if not allowed)
+ * @param user - JWT payload from authentication
+ * @param permissionCode - Permission code like 'users.create'
+ */
+export async function requirePermission(user: JWTPayload, permissionCode: string): Promise<void> {
+  // Admin role always has all permissions
+  if (user.role === UserRole.ADMIN) {
+    return;
+  }
+  
+  const allowed = await hasPermission(user.userId, permissionCode);
+  if (!allowed) {
     throw new Error('Forbidden');
   }
 }

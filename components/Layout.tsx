@@ -14,6 +14,7 @@ import {
   ListItemButton,
   ListItemIcon,
   ListItemText,
+  Collapse,
 } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import DashboardIcon from '@mui/icons-material/Dashboard';
@@ -22,6 +23,11 @@ import BusinessIcon from '@mui/icons-material/Business';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import EventIcon from '@mui/icons-material/Event';
 import LogoutIcon from '@mui/icons-material/Logout';
+import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
+import SecurityIcon from '@mui/icons-material/Security';
+import GroupIcon from '@mui/icons-material/Group';
+import ExpandLess from '@mui/icons-material/ExpandLess';
+import ExpandMore from '@mui/icons-material/ExpandMore';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -35,11 +41,19 @@ const menuItems = [
   { text: 'Nghỉ phép', icon: <EventIcon />, path: '/leaves' },
 ];
 
+const adminMenuItems = [
+  { text: 'Vai trò', icon: <SecurityIcon />, path: '/admin/roles' },
+  { text: 'Người dùng', icon: <GroupIcon />, path: '/admin/users' },
+];
+
 export function Layout({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [adminOpen, setAdminOpen] = useState(true);
   const router = useRouter();
   const pathname = usePathname();
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
+
+  const isAdmin = user?.role === 'admin';
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -53,7 +67,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const drawer = (
     <div>
       <Toolbar>
-        <Typography variant="h6" noWrap component="div">
+        <Typography variant="h6" noWrap component="div" sx={{ fontWeight: 'bold' }}>
           HRMS
         </Typography>
       </Toolbar>
@@ -74,6 +88,43 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </ListItem>
         ))}
       </List>
+      
+      {isAdmin && (
+        <>
+          <Divider />
+          <List>
+            <ListItem disablePadding>
+              <ListItemButton onClick={() => setAdminOpen(!adminOpen)}>
+                <ListItemIcon>
+                  <AdminPanelSettingsIcon />
+                </ListItemIcon>
+                <ListItemText primary="Quản trị" />
+                {adminOpen ? <ExpandLess /> : <ExpandMore />}
+              </ListItemButton>
+            </ListItem>
+            <Collapse in={adminOpen} timeout="auto" unmountOnExit>
+              <List component="div" disablePadding>
+                {adminMenuItems.map((item) => (
+                  <ListItem key={item.text} disablePadding>
+                    <ListItemButton
+                      sx={{ pl: 4 }}
+                      selected={pathname === item.path}
+                      onClick={() => {
+                        router.push(item.path);
+                        setMobileOpen(false);
+                      }}
+                    >
+                      <ListItemIcon>{item.icon}</ListItemIcon>
+                      <ListItemText primary={item.text} />
+                    </ListItemButton>
+                  </ListItem>
+                ))}
+              </List>
+            </Collapse>
+          </List>
+        </>
+      )}
+      
       <Divider />
       <List>
         <ListItem disablePadding>

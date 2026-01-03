@@ -75,3 +75,25 @@ export function getFirstResult<T = any>(result: any): T | null {
   return normalized.length > 0 ? normalized[0] : null;
 }
 
+// Helper to convert MySQL TINYINT to boolean
+export function convertMySQLBooleans<T extends Record<string, any>>(
+  obj: T,
+  fields: string[]
+): T {
+  const result = { ...obj };
+  for (const field of fields) {
+    if (field in result) {
+      result[field] = result[field] === 1 || result[field] === true;
+    }
+  }
+  return result;
+}
+
+// Helper to convert array of objects with MySQL booleans
+export function convertMySQLBooleansArray<T extends Record<string, any>>(
+  arr: T[],
+  fields: string[]
+): T[] {
+  return arr.map(obj => convertMySQLBooleans(obj, fields));
+}
+

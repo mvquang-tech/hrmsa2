@@ -96,3 +96,46 @@ export interface PaginatedResponse<T> {
   totalPages: number;
 }
 
+// RBAC Types
+export interface Role {
+  id: number;
+  name: string;
+  code: string;
+  description?: string;
+  isSystem: boolean;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  permissions?: Permission[];
+}
+
+export interface Permission {
+  id: number;
+  name: string;
+  code: string;
+  module: string;
+  action: string;
+  description?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface RolePermission {
+  id: number;
+  roleId: number;
+  permissionId: number;
+  createdAt: Date;
+}
+
+export interface UserRoleMapping {
+  id: number;
+  userId: number;
+  roleId: number;
+  createdAt: Date;
+}
+
+export interface UserWithRoles extends User {
+  roles?: Role[];
+  permissions?: string[];
+}
+
