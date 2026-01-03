@@ -52,7 +52,12 @@ export const leaveSchema = z.object({
   type: z.enum(['annual', 'sick', 'personal', 'maternity', 'unpaid']),
   startDate: z.string().min(1, 'Ngày bắt đầu là bắt buộc'),
   endDate: z.string().min(1, 'Ngày kết thúc là bắt buộc'),
-  days: z.number().min(1, 'Số ngày nghỉ ít nhất 1'),
+  days: z.number().min(0.5, 'Số ngày nghỉ ít nhất 0.5').max(365, 'Số ngày nghỉ tối đa 365'),
+  // Sessions format: { "YYYY-MM-DD": ["morning", "afternoon"] }
+  sessions: z.record(
+    z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format'),
+    z.array(z.enum(['morning', 'afternoon']))
+  ).optional(),
   reason: z.string().min(5, 'Lý do ít nhất 5 ký tự'),
   status: z.enum(['pending', 'approved', 'rejected']).optional(),
 });

@@ -152,3 +152,4 @@ INSERT IGNORE INTO user_roles (userId, roleId)
 SELECT u.id, r.id FROM users u, roles r 
 WHERE u.username = 'admin' AND r.code = 'admin';
 
+

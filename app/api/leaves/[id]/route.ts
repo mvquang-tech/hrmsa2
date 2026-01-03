@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { leaveSchema, idSchema } from '@/lib/utils/validation';
 import { createErrorResponse, createSuccessResponse, requireAuth } from '@/lib/middleware/auth';
-import { UserRole } from '@/lib/types';
+import { UserRole, LeaveSessions } from '@/lib/types';
 import { formatDate } from '@/lib/utils/db-helpers';
-import { differenceInDays } from 'date-fns';
+import { calculateDaysFromSessions, normalizeSessions, normalizeDate } from '@/lib/utils/leave-helpers';
 
 export async function GET(
   request: NextRequest,
@@ -21,12 +21,34 @@ export async function GET(
       return createErrorResponse('Không tìm thấy đơn nghỉ phép', 404);
     }
 
+    const leave = leaveList[0];
+
+    // Load sessions from leave_sessions table
+    const sessionsData = await query(
+      'SELECT date, sessionType FROM leave_sessions WHERE leaveId = ? ORDER BY date, sessionType',
+      [id]
+    ) as any[];
+    
+    const sessions: LeaveSessions = {};
+    if (Array.isArray(sessionsData)) {
+      sessionsData.forEach((row: any) => {
+        const dateKey = normalizeDate(row.date);
+        if (!sessions[dateKey]) {
+          sessions[dateKey] = [];
+        }
+        if (row.sessionType === 'morning' || row.sessionType === 'afternoon') {
+          sessions[dateKey].push(row.sessionType);
+        }
+      });
+    }
+    leave.sessions = sessions;
+
     // Employees can only see their own
-    if (user.role === UserRole.EMPLOYEE && user.employeeId !== leaveList[0].employeeId) {
+    if (user.role === UserRole.EMPLOYEE && user.employeeId !== leave.employeeId) {
       return createErrorResponse('Không có quyền truy cập', 403);
     }
 
-    return createSuccessResponse(leaveList[0]);
+    return createSuccessResponse(leave);
   } catch (error: any) {
     if (error.message === 'Unauthorized') {
       return createErrorResponse('Unauthorized', 401);
@@ -69,7 +91,17 @@ export async function PUT(
       if (endDate < startDate) {
         return createErrorResponse('Ngày kết thúc phải sau ngày bắt đầu', 400);
       }
-      const days = differenceInDays(endDate, startDate) + 1;
+      // Normalize and calculate days from sessions
+      let days = validated.days;
+      let sessionsToSave: LeaveSessions = {};
+      
+      if (validated.sessions) {
+        const normalizedSessions = normalizeSessions(validated.sessions);
+        days = calculateDaysFromSessions(normalizedSessions);
+        sessionsToSave = normalizedSessions;
+      }
+      
+      // Update leave record
       await query(
         'UPDATE leaves SET type = ?, startDate = ?, endDate = ?, days = ?, reason = ? WHERE id = ?',
         [
@@ -81,6 +113,33 @@ export async function PUT(
           id,
         ]
       );
+
+      // Delete existing sessions and insert new ones
+      await query('DELETE FROM leave_sessions WHERE leaveId = ?', [id]);
+      
+      if (Object.keys(sessionsToSave).length > 0) {
+        const sessionInserts: Array<[number, string, string]> = [];
+        
+        Object.keys(sessionsToSave).forEach(dateKey => {
+          const normalizedDate = normalizeDate(dateKey);
+          const sessionArray = sessionsToSave[dateKey];
+          
+          if (Array.isArray(sessionArray)) {
+            sessionArray.forEach(sessionType => {
+              if (sessionType === 'morning' || sessionType === 'afternoon') {
+                sessionInserts.push([id, normalizedDate, sessionType]);
+              }
+            });
+          }
+        });
+
+        if (sessionInserts.length > 0) {
+          await query(
+            'INSERT INTO leave_sessions (leaveId, date, sessionType) VALUES ?',
+            [sessionInserts]
+          );
+        }
+      }
     } else {
       // Managers/HR/Admin can approve/reject
       if (body.status && ['approved', 'rejected'].includes(body.status)) {
@@ -95,7 +154,17 @@ export async function PUT(
         if (endDate < startDate) {
           return createErrorResponse('Ngày kết thúc phải sau ngày bắt đầu', 400);
         }
-        const days = differenceInDays(endDate, startDate) + 1;
+        // Normalize and calculate days from sessions
+        let days = validated.days;
+        let sessionsToSave: LeaveSessions = {};
+        
+        if (validated.sessions) {
+          const normalizedSessions = normalizeSessions(validated.sessions);
+          days = calculateDaysFromSessions(normalizedSessions);
+          sessionsToSave = normalizedSessions;
+        }
+        
+        // Update leave record
         await query(
           'UPDATE leaves SET type = ?, startDate = ?, endDate = ?, days = ?, reason = ? WHERE id = ?',
           [
@@ -107,12 +176,62 @@ export async function PUT(
             id,
           ]
         );
+
+        // Delete existing sessions and insert new ones
+        await query('DELETE FROM leave_sessions WHERE leaveId = ?', [id]);
+        
+        if (Object.keys(sessionsToSave).length > 0) {
+          const sessionInserts: Array<[number, string, string]> = [];
+          
+          Object.keys(sessionsToSave).forEach(dateKey => {
+            const normalizedDate = normalizeDate(dateKey);
+            const sessionArray = sessionsToSave[dateKey];
+            
+            if (Array.isArray(sessionArray)) {
+              sessionArray.forEach(sessionType => {
+                if (sessionType === 'morning' || sessionType === 'afternoon') {
+                  sessionInserts.push([id, normalizedDate, sessionType]);
+                }
+              });
+            }
+          });
+
+          if (sessionInserts.length > 0) {
+            await query(
+              'INSERT INTO leave_sessions (leaveId, date, sessionType) VALUES ?',
+              [sessionInserts]
+            );
+          }
+        }
       }
     }
 
+    // Get updated leave with sessions
     const updated = await query('SELECT * FROM leaves WHERE id = ?', [id]);
     const updatedList = Array.isArray(updated) ? updated : [updated];
-    return createSuccessResponse(updatedList[0], 'Cập nhật đơn nghỉ phép thành công');
+    const updatedLeave = updatedList[0];
+    
+    // Load sessions
+    const sessionsData = await query(
+      'SELECT date, sessionType FROM leave_sessions WHERE leaveId = ? ORDER BY date, sessionType',
+      [id]
+    ) as any[];
+    
+    const sessions: LeaveSessions = {};
+    if (Array.isArray(sessionsData)) {
+      sessionsData.forEach((row: any) => {
+        const dateKey = normalizeDate(row.date);
+        if (!sessions[dateKey]) {
+          sessions[dateKey] = [];
+        }
+        if (row.sessionType === 'morning' || row.sessionType === 'afternoon') {
+          sessions[dateKey].push(row.sessionType);
+        }
+      });
+    }
+    updatedLeave.sessions = sessions;
+    
+    return createSuccessResponse(updatedLeave, 'Cập nhật đơn nghỉ phép thành công');
   } catch (error: any) {
     if (error.message === 'Unauthorized') {
       return createErrorResponse('Unauthorized', 401);

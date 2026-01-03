@@ -59,6 +59,12 @@ export interface Overtime {
   updatedAt: Date;
 }
 
+// Leave session type
+export type SessionType = 'morning' | 'afternoon';
+
+// Leave sessions format: { "YYYY-MM-DD": ["morning", "afternoon"] }
+export type LeaveSessions = Record<string, SessionType[]>;
+
 export interface Leave {
   id: number;
   employeeId: number;
@@ -66,6 +72,7 @@ export interface Leave {
   startDate: Date;
   endDate: Date;
   days: number;
+  sessions?: LeaveSessions; // Object: { "YYYY-MM-DD": ["morning", "afternoon"] } - loaded from leave_sessions table
   reason: string;
   status: 'pending' | 'approved' | 'rejected';
   approvedBy?: number;
