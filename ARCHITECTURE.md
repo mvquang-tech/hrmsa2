@@ -215,7 +215,553 @@ sequenceDiagram
     Page-->>Client: Render UI
 ```
 
-## Kiến trúc Database
+## UML Class Diagrams
+
+### Domain Models (Entities)
+
+```mermaid
+classDiagram
+    direction TB
+    
+    class User {
+        +int id
+        +string username
+        +string email
+        +string password
+        +UserRole role
+        +int employeeId
+        +Date createdAt
+        +Date updatedAt
+    }
+    
+    class Employee {
+        +int id
+        +string code
+        +string firstName
+        +string lastName
+        +string email
+        +string phone
+        +string address
+        +Date dateOfBirth
+        +Date dateOfJoin
+        +int departmentId
+        +string position
+        +number salary
+        +EmployeeStatus status
+        +Date createdAt
+        +Date updatedAt
+    }
+    
+    class Department {
+        +int id
+        +string name
+        +string code
+        +string description
+        +int managerId
+        +Date createdAt
+        +Date updatedAt
+    }
+    
+    class Leave {
+        +int id
+        +int employeeId
+        +LeaveType type
+        +Date startDate
+        +Date endDate
+        +number days
+        +LeaveSessions sessions
+        +string reason
+        +LeaveStatus status
+        +int approvedBy
+        +Date approvedAt
+        +Date createdAt
+        +Date updatedAt
+    }
+    
+    class Overtime {
+        +int id
+        +int employeeId
+        +Date date
+        +number hours
+        +string reason
+        +OvertimeStatus status
+        +int approvedBy
+        +Date approvedAt
+        +Date createdAt
+        +Date updatedAt
+    }
+    
+    class Role {
+        +int id
+        +string name
+        +string code
+        +string description
+        +boolean isSystem
+        +boolean isActive
+        +Date createdAt
+        +Date updatedAt
+        +Permission[] permissions
+    }
+    
+    class Permission {
+        +int id
+        +string name
+        +string code
+        +string module
+        +string action
+        +string description
+        +Date createdAt
+        +Date updatedAt
+    }
+    
+    class RolePermission {
+        +int id
+        +int roleId
+        +int permissionId
+        +Date createdAt
+    }
+    
+    class UserRoleMapping {
+        +int id
+        +int userId
+        +int roleId
+        +Date createdAt
+    }
+    
+    %% Enumerations
+    class UserRole {
+        <<enumeration>>
+        ADMIN
+        HR
+        MANAGER
+        EMPLOYEE
+    }
+    
+    class EmployeeStatus {
+        <<enumeration>>
+        active
+        inactive
+        terminated
+    }
+    
+    class LeaveType {
+        <<enumeration>>
+        annual
+        sick
+        personal
+        maternity
+        unpaid
+    }
+    
+    class LeaveStatus {
+        <<enumeration>>
+        pending
+        approved
+        rejected
+    }
+    
+    class OvertimeStatus {
+        <<enumeration>>
+        pending
+        approved
+        rejected
+    }
+    
+    class SessionType {
+        <<enumeration>>
+        morning
+        afternoon
+    }
+    
+    %% Relationships
+    User "1" --> "0..1" Employee : employeeId
+    User "1" --> "*" UserRoleMapping : userId
+    User --> UserRole : role
+    
+    Employee "1" --> "*" Leave : employeeId
+    Employee "1" --> "*" Overtime : employeeId
+    Employee "*" --> "1" Department : departmentId
+    Employee --> EmployeeStatus : status
+    
+    Department "1" --> "0..1" Employee : managerId
+    
+    Leave --> LeaveType : type
+    Leave --> LeaveStatus : status
+    Leave "1" --> "0..1" User : approvedBy
+    
+    Overtime --> OvertimeStatus : status
+    Overtime "1" --> "0..1" User : approvedBy
+    
+    Role "1" --> "*" RolePermission : roleId
+    Role "1" --> "*" UserRoleMapping : roleId
+    
+    Permission "1" --> "*" RolePermission : permissionId
+    
+    UserRoleMapping "*" --> "1" User
+    UserRoleMapping "*" --> "1" Role
+    
+    RolePermission "*" --> "1" Role
+    RolePermission "*" --> "1" Permission
+```
+
+### Service Layer Classes
+
+```mermaid
+classDiagram
+    direction TB
+    
+    %% Authentication & Authorization
+    class AuthService {
+        +generateToken(payload: JWTPayload) string
+        +verifyToken(token: string) JWTPayload
+        +hashPassword(password: string) Promise~string~
+        +comparePassword(password: string, hash: string) Promise~boolean~
+        +checkRole(userRole: UserRole, requiredRoles: UserRole[]) boolean
+        +requireRole(userRole: UserRole, requiredRoles: UserRole[]) void
+    }
+    
+    class JWTPayload {
+        +int userId
+        +string username
+        +UserRole role
+        +int employeeId
+    }
+    
+    class AuthMiddleware {
+        +getAuthToken(request: NextRequest) string
+        +authenticate(request: NextRequest) JWTPayload
+        +requireAuth(request: NextRequest) JWTPayload
+        +requireRole(user: JWTPayload, roles: UserRole[]) void
+        +hasPermission(userId: int, permissionCode: string) Promise~boolean~
+        +getUserPermissions(userId: int) Promise~string[]~
+        +requirePermission(user: JWTPayload, permissionCode: string) Promise~void~
+        +createErrorResponse(message: string, status: int) NextResponse
+    }
+    
+    %% Database Layer
+    class DatabasePool {
+        -Pool mysqlPool
+        +getDbPool() Pool
+        +query(sql: string, params: any[]) Promise~any~
+    }
+    
+    class DBHelpers {
+        +paginate~T~(table: string, params: PaginationParams, whereClause: string, whereParams: any[]) Promise~PaginatedResponse~T~~
+        +formatDate(date: Date) string
+        +parseDate(dateString: string) Date
+        +normalizeQueryResult~T~(result: any) T[]
+        +getFirstResult~T~(result: any) T
+        +convertMySQLBooleans~T~(obj: T, fields: string[]) T
+        +convertMySQLBooleansArray~T~(arr: T[], fields: string[]) T[]
+    }
+    
+    %% Leave Helpers
+    class LeaveHelpers {
+        +generateDateRange(startDate: string, endDate: string) string[]
+        +calculateDaysFromSessions(sessions: LeaveSessions) number
+        +normalizeDate(date: string | Date) string
+        +normalizeSessions(sessions: any) LeaveSessions
+    }
+    
+    %% API Response Types
+    class ApiResponse~T~ {
+        +boolean success
+        +T data
+        +string message
+        +string error
+    }
+    
+    class PaginationParams {
+        +int page
+        +int limit
+        +string sortBy
+        +string sortOrder
+    }
+    
+    class PaginatedResponse~T~ {
+        +T[] data
+        +int total
+        +int page
+        +int limit
+        +int totalPages
+    }
+    
+    %% Relationships
+    AuthMiddleware --> AuthService : uses
+    AuthMiddleware --> JWTPayload : creates
+    AuthMiddleware --> DatabasePool : queries
+    
+    DBHelpers --> DatabasePool : uses
+    DBHelpers --> PaginationParams : input
+    DBHelpers --> PaginatedResponse : output
+    
+    LeaveHelpers ..> SessionType : uses
+```
+
+### Frontend Components & Hooks
+
+```mermaid
+classDiagram
+    direction TB
+    
+    class AuthContext {
+        +User user
+        +string token
+        +string[] permissions
+        +login(username: string, password: string) Promise~void~
+        +logout() void
+        +boolean isAuthenticated
+        +boolean isLoading
+        +hasPermission(permission: string) boolean
+        +hasAnyPermission(permissions: string[]) boolean
+    }
+    
+    class AuthProvider {
+        -User user
+        -string token
+        -string[] permissions
+        -boolean isLoading
+        +login(username: string, password: string) Promise~void~
+        +logout() void
+        +hasPermission(permission: string) boolean
+        +hasAnyPermission(permissions: string[]) boolean
+    }
+    
+    class useAuth {
+        <<hook>>
+        +User user
+        +string token
+        +string[] permissions
+        +boolean isAuthenticated
+        +boolean isLoading
+        +login() Promise~void~
+        +logout() void
+        +hasPermission() boolean
+        +hasAnyPermission() boolean
+    }
+    
+    class Layout {
+        <<component>>
+        -boolean sidebarOpen
+        -string[] menuItems
+        +children ReactNode
+        +render() JSX
+    }
+    
+    class ThemeProvider {
+        <<component>>
+        +children ReactNode
+        +theme Theme
+        +render() JSX
+    }
+    
+    %% Page Components
+    class DashboardPage {
+        <<page>>
+        +render() JSX
+    }
+    
+    class LoginPage {
+        <<page>>
+        -string username
+        -string password
+        -boolean loading
+        -string error
+        +handleLogin() void
+        +render() JSX
+    }
+    
+    class DepartmentsPage {
+        <<page>>
+        -Department[] departments
+        -boolean loading
+        +fetchDepartments() void
+        +handleCreate() void
+        +handleEdit() void
+        +handleDelete() void
+        +render() JSX
+    }
+    
+    class EmployeesPage {
+        <<page>>
+        -Employee[] employees
+        -boolean loading
+        +fetchEmployees() void
+        +handleCreate() void
+        +handleEdit() void
+        +handleDelete() void
+        +handleCreateAccount() void
+        +render() JSX
+    }
+    
+    class LeavesPage {
+        <<page>>
+        -Leave[] leaves
+        -boolean loading
+        +fetchLeaves() void
+        +handleCreate() void
+        +handleApprove() void
+        +handleReject() void
+        +render() JSX
+    }
+    
+    class OvertimePage {
+        <<page>>
+        -Overtime[] overtimes
+        -boolean loading
+        +fetchOvertimes() void
+        +handleCreate() void
+        +handleApprove() void
+        +handleReject() void
+        +render() JSX
+    }
+    
+    class RolesPage {
+        <<page>>
+        -Role[] roles
+        -Permission[] permissions
+        -boolean loading
+        +fetchRoles() void
+        +handleCreate() void
+        +handleEdit() void
+        +handleAssignPermissions() void
+        +render() JSX
+    }
+    
+    class UsersPage {
+        <<page>>
+        -User[] users
+        -Role[] roles
+        -boolean loading
+        +fetchUsers() void
+        +handleAssignRoles() void
+        +render() JSX
+    }
+    
+    %% Relationships
+    AuthProvider --> AuthContext : provides
+    useAuth --> AuthContext : consumes
+    
+    Layout --> useAuth : uses
+    LoginPage --> useAuth : uses
+    DashboardPage --> Layout : wraps
+    DepartmentsPage --> Layout : wraps
+    EmployeesPage --> Layout : wraps
+    LeavesPage --> Layout : wraps
+    OvertimePage --> Layout : wraps
+    RolesPage --> Layout : wraps
+    UsersPage --> Layout : wraps
+    
+    DepartmentsPage --> useAuth : uses
+    EmployeesPage --> useAuth : uses
+    LeavesPage --> useAuth : uses
+    OvertimePage --> useAuth : uses
+    RolesPage --> useAuth : uses
+    UsersPage --> useAuth : uses
+```
+
+### Validation Schemas (Zod)
+
+```mermaid
+classDiagram
+    direction TB
+    
+    class ValidationSchemas {
+        <<module>>
+    }
+    
+    class loginSchema {
+        +string username
+        +string password
+    }
+    
+    class registerSchema {
+        +string username
+        +string email
+        +string password
+        +UserRole role
+    }
+    
+    class departmentSchema {
+        +string name
+        +string code
+        +string description
+        +int managerId
+    }
+    
+    class employeeSchema {
+        +string code
+        +string firstName
+        +string lastName
+        +string email
+        +string phone
+        +string address
+        +string dateOfBirth
+        +string dateOfJoin
+        +int departmentId
+        +string position
+        +number salary
+        +EmployeeStatus status
+    }
+    
+    class leaveSchema {
+        +int employeeId
+        +LeaveType type
+        +string startDate
+        +string endDate
+        +number days
+        +LeaveSessions sessions
+        +string reason
+        +LeaveStatus status
+    }
+    
+    class overtimeSchema {
+        +int employeeId
+        +string date
+        +number hours
+        +string reason
+        +OvertimeStatus status
+    }
+    
+    class roleSchema {
+        +string name
+        +string code
+        +string description
+        +boolean isActive
+    }
+    
+    class permissionSchema {
+        +string name
+        +string code
+        +string module
+        +string action
+        +string description
+    }
+    
+    class paginationSchema {
+        +int page
+        +int limit
+        +string sortBy
+        +string sortOrder
+    }
+    
+    class idSchema {
+        +int id
+    }
+    
+    ValidationSchemas --> loginSchema
+    ValidationSchemas --> registerSchema
+    ValidationSchemas --> departmentSchema
+    ValidationSchemas --> employeeSchema
+    ValidationSchemas --> leaveSchema
+    ValidationSchemas --> overtimeSchema
+    ValidationSchemas --> roleSchema
+    ValidationSchemas --> permissionSchema
+    ValidationSchemas --> paginationSchema
+    ValidationSchemas --> idSchema
+```
+
+## Kiến trúc Database (ER Diagram)
 
 ```mermaid
 erDiagram
@@ -239,26 +785,41 @@ erDiagram
     
     users {
         int id PK
-        string username
-        string email
+        string username UK
+        string email UK
         string password
         enum role
         int employeeId FK
+        datetime createdAt
+        datetime updatedAt
     }
     
     employees {
         int id PK
-        string code
+        string code UK
         string firstName
         string lastName
+        string email UK
+        string phone
+        string address
+        date dateOfBirth
+        date dateOfJoin
         int departmentId FK
+        string position
+        decimal salary
+        enum status
+        datetime createdAt
+        datetime updatedAt
     }
     
     departments {
         int id PK
         string name
-        string code
+        string code UK
+        text description
         int managerId FK
+        datetime createdAt
+        datetime updatedAt
     }
     
     leaves {
@@ -271,6 +832,9 @@ erDiagram
         text reason
         enum status
         int approvedBy FK
+        datetime approvedAt
+        datetime createdAt
+        datetime updatedAt
     }
     
     leave_sessions {
@@ -278,6 +842,7 @@ erDiagram
         int leaveId FK
         date date
         enum sessionType
+        datetime createdAt
     }
     
     overtime {
@@ -288,31 +853,45 @@ erDiagram
         text reason
         enum status
         int approvedBy FK
+        datetime approvedAt
+        datetime createdAt
+        datetime updatedAt
     }
     
     roles {
         int id PK
-        string code
+        string code UK
         string name
+        text description
         boolean isActive
         boolean isSystem
+        datetime createdAt
+        datetime updatedAt
     }
     
     permissions {
         int id PK
-        string code
+        string code UK
         string name
         string module
+        string action
+        text description
+        datetime createdAt
+        datetime updatedAt
     }
     
     role_permissions {
+        int id PK
         int roleId FK
         int permissionId FK
+        datetime createdAt
     }
     
     user_roles {
+        int id PK
         int userId FK
         int roleId FK
+        datetime createdAt
     }
 ```
 
