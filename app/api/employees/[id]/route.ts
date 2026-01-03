@@ -1,0 +1,125 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { query } from '@/lib/db';
+import { employeeSchema, idSchema } from '@/lib/utils/validation';
+import { createErrorResponse, createSuccessResponse, requireAuth } from '@/lib/middleware/auth';
+import { formatDate } from '@/lib/utils/db-helpers';
+
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    requireAuth(request);
+    const { id } = idSchema.parse({ id: params.id });
+
+    const employees = await query('SELECT * FROM employees WHERE id = ?', [id]);
+    const empList = Array.isArray(employees) ? employees : [employees];
+
+    if (!empList || empList.length === 0) {
+      return createErrorResponse('Không tìm thấy nhân viên', 404);
+    }
+
+    return createSuccessResponse(empList[0]);
+  } catch (error: any) {
+    if (error.message === 'Unauthorized') {
+      return createErrorResponse('Unauthorized', 401);
+    }
+    if (error.name === 'ZodError') {
+      return createErrorResponse(error.errors[0].message, 400);
+    }
+    console.error('Error in GET /api/employees/[id]:', error);
+    return createErrorResponse(error.message || 'Lỗi lấy thông tin nhân viên', 500);
+  }
+}
+
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    requireAuth(request);
+    const { id } = idSchema.parse({ id: params.id });
+    const body = await request.json();
+    const validated = employeeSchema.parse(body);
+
+    // Check if exists
+    const existing = await query('SELECT id FROM employees WHERE id = ?', [id]);
+    if (!Array.isArray(existing) || existing.length === 0) {
+      return createErrorResponse('Không tìm thấy nhân viên', 404);
+    }
+
+    // Check if code exists (excluding current)
+    const codeCheck = await query('SELECT id FROM employees WHERE code = ? AND id != ?', [validated.code, id]);
+    if (Array.isArray(codeCheck) && codeCheck.length > 0) {
+      return createErrorResponse('Mã nhân viên đã tồn tại', 400);
+    }
+
+    // Check if email exists (excluding current)
+    const emailCheck = await query('SELECT id FROM employees WHERE email = ? AND id != ?', [validated.email, id]);
+    if (Array.isArray(emailCheck) && emailCheck.length > 0) {
+      return createErrorResponse('Email đã tồn tại', 400);
+    }
+
+    // Check department exists
+    const deptCheck = await query('SELECT id FROM departments WHERE id = ?', [validated.departmentId]);
+    if (!Array.isArray(deptCheck) || deptCheck.length === 0) {
+      return createErrorResponse('Phòng ban không tồn tại', 400);
+    }
+
+    await query(
+      `UPDATE employees SET code = ?, firstName = ?, lastName = ?, email = ?, phone = ?, address = ?, 
+       dateOfBirth = ?, dateOfJoin = ?, departmentId = ?, position = ?, salary = ?, status = ? WHERE id = ?`,
+      [
+        validated.code,
+        validated.firstName,
+        validated.lastName,
+        validated.email,
+        validated.phone || null,
+        validated.address || null,
+        validated.dateOfBirth ? formatDate(validated.dateOfBirth) : null,
+        formatDate(validated.dateOfJoin)!,
+        validated.departmentId,
+        validated.position || null,
+        validated.salary || null,
+        validated.status,
+        id,
+      ]
+    );
+
+    const updated = await query('SELECT * FROM employees WHERE id = ?', [id]);
+    const updatedList = Array.isArray(updated) ? updated : [updated];
+    return createSuccessResponse(updatedList[0], 'Cập nhật nhân viên thành công');
+  } catch (error: any) {
+    if (error.message === 'Unauthorized') {
+      return createErrorResponse('Unauthorized', 401);
+    }
+    if (error.name === 'ZodError') {
+      return createErrorResponse(error.errors[0].message, 400);
+    }
+    console.error('Error in PUT /api/employees/[id]:', error);
+    return createErrorResponse(error.message || 'Lỗi cập nhật nhân viên', 500);
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    requireAuth(request);
+    const { id } = idSchema.parse({ id: params.id });
+
+    await query('DELETE FROM employees WHERE id = ?', [id]);
+    return createSuccessResponse(null, 'Xóa nhân viên thành công');
+  } catch (error: any) {
+    if (error.message === 'Unauthorized') {
+      return createErrorResponse('Unauthorized', 401);
+    }
+    if (error.name === 'ZodError') {
+      return createErrorResponse(error.errors[0].message, 400);
+    }
+    console.error('Error in DELETE /api/employees/[id]:', error);
+    return createErrorResponse(error.message || 'Lỗi xóa nhân viên', 500);
+  }
+}
+
