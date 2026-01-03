@@ -47,7 +47,7 @@ interface Overtime {
 }
 
 export default function OvertimePage() {
-  const { isAuthenticated, token, user } = useAuth();
+  const { isAuthenticated, token, user, isLoading } = useAuth();
   const router = useRouter();
   const [overtimes, setOvertimes] = useState<Overtime[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -63,18 +63,21 @@ export default function OvertimePage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!isAuthenticated || !token) {
-      if (!isAuthenticated) {
-        router.push('/login');
-      }
+    if (isLoading) return;
+    
+    if (!isAuthenticated) {
+      router.push('/login');
       return;
     }
-    fetchOvertimes();
-    if (user?.role !== UserRole.EMPLOYEE) {
-      fetchEmployees();
+    
+    if (token) {
+      fetchOvertimes();
+      if (user?.role !== UserRole.EMPLOYEE) {
+        fetchEmployees();
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated, token, router, user]);
+  }, [isAuthenticated, token, isLoading, router, user]);
 
   const fetchEmployees = async () => {
     if (!token) {

@@ -36,7 +36,7 @@ interface Department {
 }
 
 export default function DepartmentsPage() {
-  const { isAuthenticated, token } = useAuth();
+  const { isAuthenticated, token, isLoading } = useAuth();
   const router = useRouter();
   const [departments, setDepartments] = useState<Department[]>([]);
   const [open, setOpen] = useState(false);
@@ -46,14 +46,20 @@ export default function DepartmentsPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!isAuthenticated || !token) {
-      if (!isAuthenticated) {
-        router.push('/login');
-      }
+    // Wait for auth loading to complete
+    if (isLoading) return;
+    
+    // Redirect to login if not authenticated
+    if (!isAuthenticated) {
+      router.push('/login');
       return;
     }
-    fetchDepartments();
-  }, [isAuthenticated, token, router]);
+    
+    // Fetch data if authenticated
+    if (token) {
+      fetchDepartments();
+    }
+  }, [isAuthenticated, token, isLoading, router]);
 
   const fetchDepartments = async () => {
     if (!token) {

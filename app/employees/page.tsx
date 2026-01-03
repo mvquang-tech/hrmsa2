@@ -48,7 +48,7 @@ interface Employee {
 }
 
 export default function EmployeesPage() {
-  const { isAuthenticated, token } = useAuth();
+  const { isAuthenticated, token, isLoading } = useAuth();
   const router = useRouter();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -69,15 +69,18 @@ export default function EmployeesPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!isAuthenticated || !token) {
-      if (!isAuthenticated) {
-        router.push('/login');
-      }
+    if (isLoading) return;
+    
+    if (!isAuthenticated) {
+      router.push('/login');
       return;
     }
-    fetchEmployees();
-    fetchDepartments();
-  }, [isAuthenticated, token, router]);
+    
+    if (token) {
+      fetchEmployees();
+      fetchDepartments();
+    }
+  }, [isAuthenticated, token, isLoading, router]);
 
   const fetchDepartments = async () => {
     if (!token) {
