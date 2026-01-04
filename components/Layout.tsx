@@ -25,6 +25,8 @@ import EventIcon from '@mui/icons-material/Event';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import LogoutIcon from '@mui/icons-material/Logout';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
+import SettingsIcon from '@mui/icons-material/Settings';
+import TelegramIcon from '@mui/icons-material/Telegram';
 import SecurityIcon from '@mui/icons-material/Security';
 import GroupIcon from '@mui/icons-material/Group';
 import ExpandLess from '@mui/icons-material/ExpandLess';
@@ -62,6 +64,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const visibleMenuItems = menuItems.filter(item => hasPermission(item.permission));
   const visibleAdminItems = adminMenuItems.filter(item => hasPermission(item.permission));
   const showAdminMenu = isAdmin || visibleAdminItems.length > 0;
+  const [settingsOpen, setSettingsOpen] = useState(true);
+
+  // Settings menu items
+  const settingsItems = [
+    { text: 'Telegram', icon: <TelegramIcon />, path: '/settings/telegram', permission: 'telegram.view' },
+  ];
+  const visibleSettingsItems = settingsItems.filter(item => hasPermission(item.permission));
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -97,6 +106,42 @@ export function Layout({ children }: { children: React.ReactNode }) {
         ))}
       </List>
       
+      {visibleSettingsItems.length > 0 && (
+        <>
+          <Divider />
+          <List>
+            <ListItem disablePadding>
+              <ListItemButton onClick={() => setSettingsOpen(!settingsOpen)}>
+                <ListItemIcon>
+                  <SettingsIcon />
+                </ListItemIcon>
+                <ListItemText primary="Cài đặt" />
+                {settingsOpen ? <ExpandLess /> : <ExpandMore />}
+              </ListItemButton>
+            </ListItem>
+            <Collapse in={settingsOpen} timeout="auto" unmountOnExit>
+              <List component="div" disablePadding>
+                {visibleSettingsItems.map((item) => (
+                  <ListItem key={item.text} disablePadding>
+                    <ListItemButton
+                      sx={{ pl: 4 }}
+                      selected={pathname === item.path}
+                      onClick={() => {
+                        router.push(item.path);
+                        setMobileOpen(false);
+                      }}
+                    >
+                      <ListItemIcon>{item.icon}</ListItemIcon>
+                      <ListItemText primary={item.text} />
+                    </ListItemButton>
+                  </ListItem>
+                ))}
+              </List>
+            </Collapse>
+          </List>
+        </>
+      )}
+
       {showAdminMenu && (
         <>
           <Divider />

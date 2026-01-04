@@ -34,6 +34,34 @@ scripts\create-database.bat
 "C:\wamp64\bin\mysql\mysql8.0.31\bin\mysql.exe" -u root -p123456 hrm_db < database\schema.sql
 ```
 
+> Note (PowerShell): If you run the above command in PowerShell you may see an error like:
+>
+> ```text
+> The '<' operator is reserved for future use
+> ```
+>
+> That's because PowerShell does not support the `<` redirection operator the same way `cmd.exe` does. Use one of the PowerShell-safe alternatives below:
+>
+> - Run the command via `cmd` (keeps the `<` operator):
+> ```powershell
+> cmd /c '"C:\wamp64\bin\mysql\mysql8.0.31\bin\mysql.exe" -u root -p123456 hrm_db < "D:\aicode\hrmsa2\database\schema.sql"'
+> ```
+>
+> - Use MySQL's `-e "source ..."` form (recommended):
+> ```powershell
+> "C:\wamp64\bin\mysql\mysql8.0.31\bin\mysql.exe" -u root -p123456 hrm_db -e "source D:/aicode/hrmsa2/database/schema.sql"
+> ```
+>
+> - Or pipe the file into mysql from PowerShell:
+> ```powershell
+> Get-Content "D:\aicode\hrmsa2\database\schema.sql" -Raw | & "C:\wamp64\bin\mysql\mysql8.0.31\bin\mysql.exe" -u root -p123456 hrm_db
+> ```
+> 
+> Example (for migration file):
+> ```powershell
+> "C:\wamp64\bin\mysql\mysql8.0.31\bin\mysql.exe" -u root -p123456 hrm_db -e "source D:/aicode/hrmsa2/database/migration-add-settings-telegram-permissions.sql"
+> ```
+
 ### Cách 3: Sử dụng MySQL Command Line
 
 1. Mở MySQL command line:

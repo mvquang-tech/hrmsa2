@@ -32,8 +32,16 @@ export async function POST(request: NextRequest) {
     // Get user permissions from RBAC tables
     let permissions: string[] = [];
     
-    // Admin has all permissions
-    if (user.role === 'admin') {
+    // Load assigned roles for the user (user_roles)
+    const assignedRoles = await query(`
+      SELECT r.* FROM roles r
+      INNER JOIN user_roles ur ON ur.roleId = r.id
+      WHERE ur.userId = ?
+    `, [user.id]);
+    const assignedRoleCodes = Array.isArray(assignedRoles) ? assignedRoles.map((r: any) => r.code) : [];
+
+    // Admin has all permissions (either via users.role column or assigned roles)
+    if (user.role === 'admin' || assignedRoleCodes.includes('admin')) {
       const allPerms = await query('SELECT code FROM permissions', []);
       permissions = Array.isArray(allPerms) ? allPerms.map((p: any) => p.code) : [];
     } else {
@@ -47,10 +55,13 @@ export async function POST(request: NextRequest) {
       permissions = Array.isArray(userPerms) ? userPerms.map((p: any) => p.code) : [];
     }
 
+    // Determine effective role for JWT (promote to 'admin' if assigned)
+    const effectiveRole = (user.role === 'admin' || assignedRoleCodes.includes('admin')) ? 'admin' : user.role;
+
     const token = generateToken({
       userId: user.id,
       username: user.username,
-      role: user.role,
+      role: effectiveRole,
       employeeId: user.employeeId || undefined,
     });
 
@@ -60,7 +71,7 @@ export async function POST(request: NextRequest) {
         id: user.id,
         username: user.username,
         email: user.email,
-        role: user.role,
+        role: effectiveRole,
         employeeId: user.employeeId,
       },
       permissions,

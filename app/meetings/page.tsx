@@ -48,11 +48,9 @@ import {
   Notes as NotesIcon,
   Notifications as NotificationIcon,
   Send as SendIcon,
-  Settings as SettingsIcon,
   Today as TodayIcon,
   CalendarMonth as CalendarIcon,
   CalendarMonth as CalendarMonthIcon,
-  Telegram as TelegramIcon,
   Refresh as RefreshIcon,
 } from '@mui/icons-material';
 import Layout from '@/components/Layout';
@@ -81,14 +79,6 @@ interface Meeting {
   updatedAt: string;
 }
 
-interface TelegramConfig {
-  id?: number;
-  userId?: number;
-  botToken: string;
-  chatId: string;
-  enabled: boolean;
-}
-
 const STATUS_OPTIONS = [
   { value: 'upcoming', label: 'Sắp tới' },
   { value: 'ongoing', label: 'Đang họp' },
@@ -109,12 +99,6 @@ const defaultMeeting: Partial<Meeting> = {
   status: 'upcoming',
 };
 
-const defaultTelegramConfig: TelegramConfig = {
-  botToken: '',
-  chatId: '',
-  enabled: true,
-};
-
 export default function MeetingsPage() {
   const { user, isLoading: authLoading } = useAuth();
   const [meetings, setMeetings] = useState<Meeting[]>([]);
@@ -127,10 +111,6 @@ export default function MeetingsPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [isEdit, setIsEdit] = useState(false);
   const [selectedMeeting, setSelectedMeeting] = useState<Partial<Meeting>>(defaultMeeting);
-  
-  // Telegram config
-  const [telegramConfig, setTelegramConfig] = useState<TelegramConfig>(defaultTelegramConfig);
-  const [telegramLoading, setTelegramLoading] = useState(false);
   
   // View dialog (read/unread)
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
@@ -197,29 +177,9 @@ export default function MeetingsPage() {
     }
   };
 
-  // Fetch Telegram config
-  const fetchTelegramConfig = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch('/api/meetings/telegram-config', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-      const data = await response.json();
-      
-      if (data.success && data.data) {
-        setTelegramConfig(data.data);
-      }
-    } catch (err) {
-      console.error('Error fetching telegram config:', err);
-    }
-  };
-
   useEffect(() => {
     if (!authLoading && user) {
       fetchMeetings();
-      fetchTelegramConfig();
     }
   }, [authLoading, user]);
 
@@ -237,12 +197,40 @@ export default function MeetingsPage() {
     return meetings.filter(m => m.date === today);
   }, [meetings]);
 
+  // Finished meetings
+  const finishedMeetings = useMemo(() => {
+    return meetings.filter(m => m.status === 'finished');
+  }, [meetings]);
+
   const upcomingMeetings = useMemo(() => {
     const today = getLocalDateString();
     return meetings.filter(m => m.date >= today).sort((a, b) => {
       const dateA = new Date(`${a.date}T${a.time}`);
       const dateB = new Date(`${b.date}T${b.time}`);
       return dateA.getTime() - dateB.getTime();
+    });
+  }, [meetings]);
+
+  // Ongoing meetings (currently happening)
+  const ongoingMeetings = useMemo(() => {
+    const now = new Date().getTime();
+    return meetings.filter(m => {
+      const start = new Date(`${m.date}T${m.time}`).getTime();
+      if (isNaN(start)) return false;
+      const end = start + (Number(m.duration) || 0) * 60000;
+      return now >= start && now < end;
+    });
+  }, [meetings]);
+
+  // Finished or unknown meetings
+  const finishedOrUnknownMeetings = useMemo(() => {
+    return meetings.filter(m => {
+      if (m.status === 'finished' || m.status === 'unknown') return true;
+      // if status not set, compute from time
+      const start = new Date(`${m.date}T${m.time}`).getTime();
+      if (isNaN(start)) return true; // unknown
+      const end = start + (Number(m.duration) || 0) * 60000;
+      return Date.now() > end;
     });
   }, [meetings]);
 
@@ -383,57 +371,7 @@ export default function MeetingsPage() {
     }
   };
 
-  const handleSaveTelegramConfig = async () => {
-    try {
-      setTelegramLoading(true);
-      const token = localStorage.getItem('token');
-      const response = await fetch('/api/meetings/telegram-config', {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(telegramConfig),
-      });
 
-      const data = await response.json();
-
-      if (data.success) {
-        setSuccess('Đã lưu cấu hình Telegram');
-      } else {
-        setError(data.error || 'Lỗi lưu cấu hình');
-      }
-    } catch (err: any) {
-      setError(err.message || 'Lỗi kết nối server');
-    } finally {
-      setTelegramLoading(false);
-    }
-  };
-
-  const handleTestTelegram = async () => {
-    try {
-      setTelegramLoading(true);
-      const token = localStorage.getItem('token');
-      const response = await fetch('/api/meetings/telegram-config/test', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        setSuccess(data.message);
-      } else {
-        setError(data.error || 'Lỗi test Telegram');
-      }
-    } catch (err: any) {
-      setError(err.message || 'Lỗi kết nối server');
-    } finally {
-      setTelegramLoading(false);
-    }
-  };
 
   // Format helpers
   const formatDate = (dateStr: string) => {
@@ -587,84 +525,7 @@ export default function MeetingsPage() {
     </TableContainer>
   );
 
-  // Render Telegram config tab
-  const renderTelegramConfig = () => (
-    <Box sx={{ p: 3, maxWidth: 600 }}>
-      <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-        <TelegramIcon color="primary" />
-        Cấu hình Telegram Bot
-      </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-        Cấu hình bot Telegram để nhận thông báo nhắc nhở lịch họp. 
-        Bạn cần tạo bot qua @BotFather và lấy Chat ID từ @userinfobot.
-      </Typography>
 
-      <Grid container spacing={3}>
-        <Grid item xs={12}>
-          <TextField
-            fullWidth
-            label="Bot Token"
-            placeholder="123456789:ABCdefGHIjklMNOpqrsTUVwxyz"
-            value={telegramConfig.botToken}
-            onChange={(e) => setTelegramConfig({ ...telegramConfig, botToken: e.target.value })}
-            helperText="Lấy từ @BotFather khi tạo bot"
-          />
-        </Grid>
-        <Grid item xs={12}>
-          <TextField
-            fullWidth
-            label="Chat ID"
-            placeholder="-1001234567890 hoặc 123456789"
-            value={telegramConfig.chatId}
-            onChange={(e) => setTelegramConfig({ ...telegramConfig, chatId: e.target.value })}
-            helperText="ID của chat/group/channel để nhận thông báo"
-          />
-        </Grid>
-        <Grid item xs={12}>
-          <FormControlLabel
-            control={
-              <Switch
-                checked={telegramConfig.enabled}
-                onChange={(e) => setTelegramConfig({ ...telegramConfig, enabled: e.target.checked })}
-              />
-            }
-            label="Bật thông báo Telegram"
-          />
-        </Grid>
-        <Grid item xs={12}>
-          <Divider sx={{ my: 2 }} />
-          <Box sx={{ display: 'flex', gap: 2 }}>
-            <Button
-              variant="contained"
-              onClick={handleSaveTelegramConfig}
-              disabled={telegramLoading || !telegramConfig.botToken || !telegramConfig.chatId}
-            >
-              Lưu cấu hình
-            </Button>
-            <Button
-              variant="outlined"
-              startIcon={<SendIcon />}
-              onClick={handleTestTelegram}
-              disabled={telegramLoading || !telegramConfig.botToken || !telegramConfig.chatId}
-            >
-              Gửi test
-            </Button>
-          </Box>
-        </Grid>
-      </Grid>
-
-      <Alert severity="info" sx={{ mt: 3 }}>
-        <Typography variant="subtitle2" gutterBottom>Hướng dẫn:</Typography>
-        <ol style={{ margin: 0, paddingLeft: 20 }}>
-          <li>Mở Telegram, tìm @BotFather</li>
-          <li>Gửi /newbot và làm theo hướng dẫn</li>
-          <li>Copy Bot Token được cấp</li>
-          <li>Tìm @userinfobot để lấy Chat ID của bạn</li>
-          <li>Hoặc thêm bot vào group/channel và lấy Chat ID từ đó</li>
-        </ol>
-      </Alert>
-    </Box>
-  );
 
   if (authLoading) {
     return (
@@ -767,18 +628,20 @@ export default function MeetingsPage() {
         {/* Tabs */}
         <Paper sx={{ mb: 3 }}>
           <Tabs value={tabValue} onChange={(_, v) => setTabValue(v)}>
-            <Tab icon={<CalendarIcon />} label="Tất cả" iconPosition="start" />
+            <Tab icon={<CalendarIcon />} label={`Sắp tới (${upcomingMeetings.length})`} iconPosition="start" />
+            <Tab icon={<TimeIcon />} label={`Đang họp (${ongoingMeetings.length})`} iconPosition="start" />
             <Tab icon={<TodayIcon />} label={`Hôm nay (${todayMeetings.length})`} iconPosition="start" />
             <Tab icon={<CalendarMonthIcon />} label="Lịch" iconPosition="start" />
-            <Tab icon={<SettingsIcon />} label="Cài đặt Telegram" iconPosition="start" />
+            <Tab icon={<EventIcon />} label={`Đã kết thúc (${finishedOrUnknownMeetings.length})`} iconPosition="start" />
           </Tabs>
         </Paper>
 
         {/* Tab Content */}
         <Paper>
-          {tabValue === 0 && renderMeetingTable(meetings)}
-          {tabValue === 1 && renderMeetingTable(todayMeetings)}
-          {tabValue === 2 && (
+          {tabValue === 0 && renderMeetingTable(upcomingMeetings)}
+          {tabValue === 1 && renderMeetingTable(ongoingMeetings)}
+          {tabValue === 2 && renderMeetingTable(todayMeetings)}
+          {tabValue === 3 && (
             <MeetingCalendar
               monthDate={currentMonth}
               onPrevMonth={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1))}
@@ -799,7 +662,7 @@ export default function MeetingsPage() {
               meetings={meetings.map(m => ({ id: m.id, title: m.title, date: m.date, time: m.time, isRead: m.isRead }))}
             />
           )}
-          {tabValue === 3 && renderTelegramConfig()}
+          {tabValue === 4 && renderMeetingTable(finishedOrUnknownMeetings)}
         </Paper>
         </Container>
 

@@ -20,14 +20,27 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
 
-    const [config] = await query(
+    const [userConfig] = await query(
       'SELECT * FROM telegram_config WHERE userId = ?',
       [user.id]
     ) as any[];
 
+    // If no per-user config and requester has meetings.config permission (usually admin),
+    // return a global config (first row) so admin can edit site-wide settings
+    let resultConfig: any = userConfig || null;
+    try {
+      const hasConfigPerm = await checkPermission(authResult as any, 'telegram.view');
+      if (!resultConfig && hasConfigPerm) {
+        const [globalCfg] = await query('SELECT * FROM telegram_config LIMIT 1', []) as any[];
+        resultConfig = globalCfg || null;
+      }
+    } catch (permErr) {
+      // ignore permission check errors and proceed with user-specific config
+    }
+
     return NextResponse.json({
       success: true,
-      data: config || null,
+      data: resultConfig || null,
     });
   } catch (error: any) {
     console.error('Error in GET /api/meetings/telegram-config:', error);

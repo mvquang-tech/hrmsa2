@@ -78,7 +78,10 @@ export default function OvertimePage() {
     
     if (token) {
       fetchOvertimes();
-      if (user?.role !== UserRole.EMPLOYEE) {
+      // If logged in as an employee, fetch only their employee record so we can show their name
+      if (user?.role === UserRole.EMPLOYEE && user.employeeId) {
+        fetchEmployeeById(user.employeeId);
+      } else if (user?.role !== UserRole.EMPLOYEE) {
         fetchEmployees();
       }
     }
@@ -105,6 +108,30 @@ export default function OvertimePage() {
       }
     } catch (err) {
       console.error('Error fetching employees:', err);
+    }
+  };
+
+  const fetchEmployeeById = async (id: number) => {
+    if (!token) {
+      console.error('No token available');
+      return;
+    }
+    try {
+      const response = await fetch(`/api/employees/${id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await response.json();
+      if (data.success) {
+        // API returns single employee object in data.data
+        setEmployees([data.data]);
+      } else {
+        console.error('Failed to fetch employee:', data.error);
+        if (data.error === 'Unauthorized') {
+          router.push('/login');
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching employee:', err);
     }
   };
 
