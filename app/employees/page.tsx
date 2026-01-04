@@ -67,6 +67,10 @@ interface Employee {
   position?: string;
   status: string;
   hasAccount?: boolean;
+  educationLevelId?: number | null;
+  educationLevelName?: string | null;
+  academicTitleId?: number | null;
+  academicTitleName?: string | null;
 }
 
 // Column configuration
@@ -87,19 +91,23 @@ const defaultColumns: ColumnConfig[] = [
   { id: 'dateOfJoin', label: 'Ngày vào làm', visible: false, minWidth: 120 },
   { id: 'status', label: 'Trạng thái', visible: true, minWidth: 100 },
   { id: 'hasAccount', label: 'Tài khoản', visible: true, minWidth: 100 },
+  { id: 'educationLevel', label: 'Trình độ', visible: false, minWidth: 160 },
+  { id: 'academicTitle', label: 'Chức danh KH', visible: false, minWidth: 160 },
 ];
 
 export default function EmployeesPage() {
   const { isAuthenticated, token, isLoading, hasPermission } = useAuth();
-  
   // Check permissions from RBAC
   const canCreate = hasPermission('employees.create');
   const canUpdate = hasPermission('employees.update');
   const canDelete = hasPermission('employees.delete');
   const canCreateAccount = hasPermission('employees.create_account');
   const router = useRouter();
+
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
+  const [educationLevels, setEducationLevels] = useState<{id:number;code:string;name:string;}[]>([]);
+  const [academicTitles, setAcademicTitles] = useState<{id:number;code:string;name:string;}[]>([]);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Employee | null>(null);
   const [formData, setFormData] = useState({
@@ -112,6 +120,8 @@ export default function EmployeesPage() {
     departmentId: '',
     position: '',
     status: 'active',
+    educationLevelId: '',
+    academicTitleId: '',
   });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -144,6 +154,8 @@ export default function EmployeesPage() {
     if (token) {
       fetchEmployees();
       fetchDepartments();
+      fetchEducationLevels();
+      fetchAcademicTitles();
     }
   }, [isAuthenticated, token, isLoading, router]);
 
@@ -167,6 +179,28 @@ export default function EmployeesPage() {
       }
     } catch (err) {
       console.error('Error fetching departments:', err);
+    }
+  };
+
+  const fetchEducationLevels = async () => {
+    if (!token) return;
+    try {
+      const resp = await fetch('/api/education-levels', { headers: { Authorization: `Bearer ${token}` } });
+      const d = await resp.json();
+      if (d.success) setEducationLevels(d.data || []);
+    } catch (e) {
+      console.error('Failed to fetch education levels', e);
+    }
+  };
+
+  const fetchAcademicTitles = async () => {
+    if (!token) return;
+    try {
+      const resp = await fetch('/api/academic-titles', { headers: { Authorization: `Bearer ${token}` } });
+      const d = await resp.json();
+      if (d.success) setAcademicTitles(d.data || []);
+    } catch (e) {
+      console.error('Failed to fetch academic titles', e);
     }
   };
 
@@ -206,6 +240,8 @@ export default function EmployeesPage() {
         departmentId: emp.departmentId.toString(),
         position: emp.position || '',
         status: emp.status,
+        educationLevelId: emp.educationLevelId ? String(emp.educationLevelId) : '',
+        academicTitleId: emp.academicTitleId ? String(emp.academicTitleId) : '',
       });
     } else {
       setEditing(null);
@@ -219,6 +255,8 @@ export default function EmployeesPage() {
         departmentId: '',
         position: '',
         status: 'active',
+        educationLevelId: '',
+        academicTitleId: '',
       });
     }
     setOpen(true);
@@ -246,6 +284,8 @@ export default function EmployeesPage() {
         body: JSON.stringify({
           ...formData,
           departmentId: parseInt(formData.departmentId),
+          educationLevelId: formData.educationLevelId ? parseInt(formData.educationLevelId) : null,
+          academicTitleId: formData.academicTitleId ? parseInt(formData.academicTitleId) : null,
         }),
       });
       const data = await response.json();
@@ -598,6 +638,8 @@ export default function EmployeesPage() {
                 {isColumnVisible('phone') && <TableCell>Điện thoại</TableCell>}
                 {isColumnVisible('department') && <TableCell>Phòng ban</TableCell>}
                 {isColumnVisible('position') && <TableCell>Chức vụ</TableCell>}
+                {isColumnVisible('educationLevel') && <TableCell>Trình độ</TableCell>}
+                {isColumnVisible('academicTitle') && <TableCell>Chức danh KH</TableCell>}
                 {isColumnVisible('dateOfJoin') && <TableCell>Ngày vào làm</TableCell>}
                 {isColumnVisible('status') && <TableCell>Trạng thái</TableCell>}
                 {isColumnVisible('hasAccount') && <TableCell>Tài khoản</TableCell>}
@@ -624,6 +666,8 @@ export default function EmployeesPage() {
                       {isColumnVisible('phone') && <TableCell>{emp.phone || '-'}</TableCell>}
                       {isColumnVisible('department') && <TableCell>{dept?.name || '-'}</TableCell>}
                       {isColumnVisible('position') && <TableCell>{emp.position || '-'}</TableCell>}
+                      {isColumnVisible('educationLevel') && <TableCell>{emp.educationLevelName || '-'}</TableCell>}
+                      {isColumnVisible('academicTitle') && <TableCell>{emp.academicTitleName || '-'}</TableCell>}
                       {isColumnVisible('dateOfJoin') && (
                         <TableCell>
                           {new Date(emp.dateOfJoin).toLocaleDateString('vi-VN')}
@@ -760,6 +804,35 @@ export default function EmployeesPage() {
                 value={formData.position}
                 onChange={(e) => setFormData({ ...formData, position: e.target.value })}
               />
+              <TextField
+                fullWidth
+                select
+                label="Trình độ đào tạo"
+                value={formData.educationLevelId}
+                onChange={(e) => setFormData({ ...formData, educationLevelId: e.target.value })}
+              >
+                <MenuItem value="">Chưa chọn</MenuItem>
+                {educationLevels.map((lvl) => (
+                  <MenuItem key={lvl.id} value={String(lvl.id)}>
+                    {lvl.name}
+                  </MenuItem>
+                ))}
+              </TextField>
+
+              <TextField
+                fullWidth
+                select
+                label="Chức danh khoa học"
+                value={formData.academicTitleId}
+                onChange={(e) => setFormData({ ...formData, academicTitleId: e.target.value })}
+              >
+                <MenuItem value="">Chưa chọn</MenuItem>
+                {academicTitles.map((t) => (
+                  <MenuItem key={t.id} value={String(t.id)}>
+                    {t.name}
+                  </MenuItem>
+                ))}
+              </TextField>
               <TextField
                 fullWidth
                 select

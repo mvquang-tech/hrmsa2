@@ -35,6 +35,8 @@ export const employeeSchema = z.object({
   position: z.string().optional(),
   salary: z.number().optional(),
   status: z.enum(['active', 'inactive', 'terminated']).optional(),
+  educationLevelId: z.number().optional().nullable(),
+  academicTitleId: z.number().optional().nullable(),
 });
 
 // Overtime validation

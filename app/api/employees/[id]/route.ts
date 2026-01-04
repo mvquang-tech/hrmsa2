@@ -45,6 +45,14 @@ export async function PUT(
     const body = await request.json();
     const validated = employeeSchema.parse(body);
 
+    // coerce educationLevelId and academicTitleId if sent as string
+    if (validated.educationLevelId && typeof validated.educationLevelId === 'string') {
+      validated.educationLevelId = parseInt(validated.educationLevelId, 10);
+    }
+    if (validated.academicTitleId && typeof validated.academicTitleId === 'string') {
+      validated.academicTitleId = parseInt(validated.academicTitleId, 10);
+    }
+
     // Check if exists
     const existing = await query('SELECT id FROM employees WHERE id = ?', [id]);
     if (!Array.isArray(existing) || existing.length === 0) {
@@ -71,7 +79,7 @@ export async function PUT(
 
     await query(
       `UPDATE employees SET code = ?, firstName = ?, lastName = ?, email = ?, phone = ?, address = ?, 
-       dateOfBirth = ?, dateOfJoin = ?, departmentId = ?, position = ?, salary = ?, status = ? WHERE id = ?`,
+       dateOfBirth = ?, dateOfJoin = ?, departmentId = ?, position = ?, salary = ?, status = ?, educationLevelId = ?, academicTitleId = ? WHERE id = ?`,
       [
         validated.code,
         validated.firstName,
@@ -85,6 +93,8 @@ export async function PUT(
         validated.position || null,
         validated.salary || null,
         validated.status,
+        validated.educationLevelId || null,
+        validated.academicTitleId || null,
         id,
       ]
     );

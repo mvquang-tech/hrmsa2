@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, startTransition } from 'react';
 import Layout from '@/components/Layout';
 import { useAuth } from '@/hooks/useAuth';
 import {
@@ -117,10 +117,9 @@ export default function FilesPage() {
   const openColumnsMenu = (e: React.MouseEvent<HTMLElement>) => setColumnsAnchorEl(e.currentTarget);
   const closeColumnsMenu = () => setColumnsAnchorEl(null);
   const toggleColumn = (key: string) => {
-    setColumnsVisible(prev => {
-      const next = { ...prev, [key]: !prev[key] };
-      try { localStorage.setItem('files_columns', JSON.stringify(next)); } catch (e) {}
-      return next;
+    // Use startTransition to keep the UI responsive for fast interactions
+    startTransition(() => {
+      setColumnsVisible(prev => ({ ...prev, [key]: !prev[key] }));
     });
   };
 
@@ -146,15 +145,40 @@ export default function FilesPage() {
   });
 
   const startRef = useRef<{ col: string; startX: number; startWidth: number } | null>(null);
+  // RAF throttle refs
+  const rafRef = useRef<number | null>(null);
+  const pendingWidthRef = useRef<number | null>(null);
 
   const onResize = (ev: MouseEvent) => {
     if (!startRef.current) return;
     const dx = ev.clientX - startRef.current.startX;
     const next = Math.max(MIN_COL_WIDTH, Math.round(startRef.current.startWidth + dx));
-    setColWidths(prev => ({ ...prev, [startRef.current!.col]: next }));
+
+    // Throttle updates using requestAnimationFrame to avoid too many re-renders
+    pendingWidthRef.current = next;
+    if (rafRef.current == null) {
+      rafRef.current = requestAnimationFrame(() => {
+        const value = pendingWidthRef.current as number;
+        setColWidths(prev => ({ ...prev, [startRef.current!.col]: value }));
+        rafRef.current = null;
+        pendingWidthRef.current = null;
+      });
+    }
   };
 
   const onStopResize = () => {
+    // flush any pending RAF
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+    if (pendingWidthRef.current != null && startRef.current) {
+      const col = startRef.current.col;
+      const value = pendingWidthRef.current;
+      setColWidths(prev => ({ ...prev, [col]: value as number }));
+      pendingWidthRef.current = null;
+    }
+
     startRef.current = null;
     document.removeEventListener('mousemove', onResize);
     document.removeEventListener('mouseup', onStopResize);
@@ -184,9 +208,47 @@ export default function FilesPage() {
     }
   };
 
+  // Persist colWidths in an idle/debounced way to avoid blocking UI during drag
   useEffect(() => {
-    try { localStorage.setItem('files_col_widths', JSON.stringify(colWidths)); } catch (e) {}
+    let id: number | any = null;
+    if (typeof window !== 'undefined' && (window as any).requestIdleCallback) {
+      id = (window as any).requestIdleCallback(() => {
+        try { localStorage.setItem('files_col_widths', JSON.stringify(colWidths)); } catch (e) {}
+      }, { timeout: 1000 });
+    } else {
+      id = window.setTimeout(() => {
+        try { localStorage.setItem('files_col_widths', JSON.stringify(colWidths)); } catch (e) {}
+      }, 250);
+    }
+    return () => {
+      if (typeof window !== 'undefined' && (window as any).cancelIdleCallback && id) {
+        (window as any).cancelIdleCallback(id);
+      } else if (id) {
+        clearTimeout(id);
+      }
+    };
   }, [colWidths]);
+
+  // Persist columnsVisible similarly to avoid blocking click
+  useEffect(() => {
+    let id: number | any = null;
+    if (typeof window !== 'undefined' && (window as any).requestIdleCallback) {
+      id = (window as any).requestIdleCallback(() => {
+        try { localStorage.setItem('files_columns', JSON.stringify(columnsVisible)); } catch (e) {}
+      }, { timeout: 1000 });
+    } else {
+      id = window.setTimeout(() => {
+        try { localStorage.setItem('files_columns', JSON.stringify(columnsVisible)); } catch (e) {}
+      }, 250);
+    }
+    return () => {
+      if (typeof window !== 'undefined' && (window as any).cancelIdleCallback && id) {
+        (window as any).cancelIdleCallback(id);
+      } else if (id) {
+        clearTimeout(id);
+      }
+    };
+  }, [columnsVisible]);
 
   // Hidden file input + click-to-select handlers
   const fileInputRef = useRef<HTMLInputElement | null>(null);

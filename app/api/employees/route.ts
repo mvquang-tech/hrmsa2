@@ -25,9 +25,23 @@ export async function GET(request: NextRequest) {
       })
     );
 
+    // Attach education level name (avoid N+1 by fetching all levels first)
+    const levels = await query('SELECT id, name FROM education_levels');
+    const levelMap = new Map((levels || []).map((l: any) => [l.id, l.name]));
+    // Fetch academic titles and map
+    const titles = await query('SELECT id, name FROM academic_titles');
+    const titleMap = new Map((titles || []).map((t: any) => [t.id, t.name]));
+    const withEducation = employeesWithAccountInfo.map((emp: any) => ({
+      ...emp,
+      educationLevelId: emp.educationLevelId || null,
+      educationLevelName: emp.educationLevelId ? levelMap.get(emp.educationLevelId) : null,
+      academicTitleId: emp.academicTitleId || null,
+      academicTitleName: emp.academicTitleId ? titleMap.get(emp.academicTitleId) : null,
+    }));
+
     return createSuccessResponse({
       ...result,
-      data: employeesWithAccountInfo
+      data: withEducation
     });
   } catch (error: any) {
     if (error.message === 'Unauthorized') {
@@ -65,8 +79,8 @@ export async function POST(request: NextRequest) {
     }
 
     const result = await query(
-      `INSERT INTO employees (code, firstName, lastName, email, phone, address, dateOfBirth, dateOfJoin, departmentId, position, salary, status) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO employees (code, firstName, lastName, email, phone, address, dateOfBirth, dateOfJoin, departmentId, position, salary, status, educationLevelId, academicTitleId) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         validated.code,
         validated.firstName,
@@ -80,6 +94,8 @@ export async function POST(request: NextRequest) {
         validated.position || null,
         validated.salary || null,
         validated.status,
+        validated.educationLevelId || null,
+        validated.academicTitleId || null,
       ]
     ) as any;
 

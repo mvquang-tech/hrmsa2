@@ -11,7 +11,9 @@
     "create-admin": "node scripts/create-admin.js",
     "migrate-leaves-days": "node scripts/migrate-leaves-days.js",
     "migrate-leaves-sessions": "node scripts/migrate-leaves-sessions.js",
-    "migrate-leave-sessions-table": "node scripts/migrate-leave-sessions-table.js"
+    "migrate-leave-sessions-table": "node scripts/migrate-leave-sessions-table.js",
+    "migrate-education-levels": "node scripts/apply-migration-education-levels.js",
+    "migrate-academic-titles": "node scripts/apply-migration-academic-titles.js"
   },
   "dependencies": {
     "next": "^14.0.4",
