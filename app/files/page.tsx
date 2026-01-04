@@ -143,6 +143,13 @@ export default function FilesPage() {
     return <InsertDriveFileIcon />;
   };
 
+  // Truncate helper: show up to `len` characters, otherwise append ellipsis
+  const truncate = (s: string, len = 35) => {
+    if (!s) return '';
+    return s.length > len ? s.slice(0, len) + '…' : s;
+  };
+
+
   // Filtered files (client-side)
   const filteredFiles = files.filter((f) => {
     if (searchTerm) {
@@ -489,7 +496,9 @@ export default function FilesPage() {
             {pendingUploads.map(p => (
               <Box key={p.id} sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
                 <Box sx={{ flex: 1 }}>
-                  <Typography sx={{ fontWeight: 500 }}>{p.name} <Typography component="span" sx={{ color: 'text.secondary' }}>({(p.size / 1024).toFixed(1)} KB)</Typography></Typography>
+                  <Tooltip title={p.name || ''} arrow>
+                    <Typography sx={{ fontWeight: 500 }}>{truncate(p.name || '', 35)} <Typography component="span" sx={{ color: 'text.secondary' }}>({(p.size / 1024).toFixed(1)} KB)</Typography></Typography>
+                  </Tooltip>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                     <Box sx={{ flex: 1 }}>
                       <LinearProgress variant="determinate" value={p.progress} sx={{ mt: 1 }} />
@@ -535,7 +544,9 @@ export default function FilesPage() {
                   <TableCell sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     {getIconForFilename(f.originalName)}
                     <Box>
-                      <Typography sx={{ fontWeight: 600 }}>{f.originalName}</Typography>
+                      <Tooltip title={f.originalName || ''} arrow>
+                        <Typography sx={{ fontWeight: 600 }}>{truncate(f.originalName || '', 35)}</Typography>
+                      </Tooltip>
                       <Typography variant="caption" sx={{ color: 'text.secondary' }}>{(f.filename || '').split('.').pop()?.toUpperCase() || ''}</Typography>
                     </Box>
                   </TableCell>

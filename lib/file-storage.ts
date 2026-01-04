@@ -3,8 +3,45 @@ import path from 'path';
 
 const UPLOAD_DIR = path.join(process.cwd(), 'public', 'uploads');
 
+/**
+ * Sanitize filename for Vietnamese usage:
+ * - remove diacritics (normalize to NFD and strip combining marks)
+ * - replace whitespace with underscores
+ * - remove/replace other invalid chars with underscore
+ * - collapse multiple underscores
+ * - trim leading/trailing underscores
+ * - lowercase the result
+ * Keeps the file extension (lowercased).
+ */
 function sanitizeFileName(name: string) {
-  return name.replace(/[^a-zA-Z0-9._-]/g, '_');
+  if (!name || typeof name !== 'string') return 'file';
+
+  const dotIndex = name.lastIndexOf('.');
+  let base = dotIndex > 0 ? name.slice(0, dotIndex) : name;
+  let ext = dotIndex > 0 ? name.slice(dotIndex) : '';
+
+  // Normalize and remove diacritics
+  try {
+    base = base.normalize('NFD').replace(/\p{Diacritic}/gu, '');
+  } catch (e) {
+    // fallback for environments without \p{Diacritic}
+    base = base.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  }
+
+  // Replace whitespace with underscore
+  base = base.replace(/\s+/g, '_');
+  // Replace any remaining non allowed chars with underscore
+  base = base.replace(/[^a-zA-Z0-9._-]/g, '_');
+  // Collapse multiple underscores and trim
+  base = base.replace(/_+/g, '_').replace(/^_+|_+$/g, '');
+  base = base.toLowerCase();
+
+  // Clean extension and lowercase
+  ext = ext.toLowerCase().replace(/[^.a-z0-9]/g, '');
+
+  if (!base) base = 'file';
+
+  return `${base}${ext}`;
 }
 
 export async function ensureDir(dir: string) {
@@ -45,8 +82,8 @@ export async function saveBase64File(base64: string, originalName: string, maxBy
   await ensureDir(dir);
 
   const timestamp = Date.now();
-  const sanitized = sanitizeFileName(originalName);
-  const storedName = `${timestamp}_${sanitized}`;
+  const sanitizedOriginalName = sanitizeFileName(originalName);
+  const storedName = `${timestamp}_${sanitizedOriginalName}`;
   const filePath = path.join(dir, storedName);
 
   await fs.writeFile(filePath, buffer);
@@ -54,7 +91,7 @@ export async function saveBase64File(base64: string, originalName: string, maxBy
   // return relative path from public (used for preview/download routing)
   const relativePath = `/uploads/${yyyy}/${mm}/${dd}/${storedName}`;
 
-  return { storedName, relativePath, size: buffer.length };
+  return { storedName, relativePath, size: buffer.length, sanitizedOriginalName };
 }
 
 export async function deleteFileByPath(relativePath: string) {

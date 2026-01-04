@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
     const result = await query(
       `INSERT INTO files (filename, originalName, mimeType, size, description, tags, fileType, notes, createdBy, path)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [saved.storedName, validated.originalName, validated.mimeType || null, saved.size, validated.description || null, validated.tags ? JSON.stringify(validated.tags) : null, validated.fileType || null, validated.notes || null, (auth as any).userId || null, saved.relativePath]
+      [saved.storedName, saved.sanitizedOriginalName, validated.mimeType || null, saved.size, validated.description || null, validated.tags ? JSON.stringify(validated.tags) : null, validated.fileType || null, validated.notes || null, (auth as any).userId || null, saved.relativePath]
     ) as any;
 
     const inserted = await query('SELECT * FROM files WHERE id = ?', [result.insertId]);
