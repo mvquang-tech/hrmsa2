@@ -45,6 +45,8 @@ import TextSnippetIcon from '@mui/icons-material/TextSnippet';
 import FilterListIcon from '@mui/icons-material/FilterList';
 import ViewColumnIcon from '@mui/icons-material/ViewColumn';
 import SearchIcon from '@mui/icons-material/Search';
+import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
+import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 
 export default function FilesPage() {
   const { isAuthenticated, token, hasPermission } = useAuth();
@@ -213,6 +215,18 @@ export default function FilesPage() {
     return s.length > len ? s.slice(0, len) + '…' : s;
   };
 
+  // Sorting state
+  const [sortBy, setSortBy] = useState<string | null>(null);
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+
+  const toggleSort = (col: string) => {
+    if (sortBy !== col) {
+      setSortBy(col);
+      setSortDir('asc');
+    } else {
+      setSortDir(prev => prev === 'asc' ? 'desc' : 'asc');
+    }
+  };
 
   // Filtered files (client-side)
   const filteredFiles = files.filter((f) => {
@@ -230,6 +244,32 @@ export default function FilesPage() {
       if (!((f.fileType || '').toLowerCase().includes(fileTypeFilter.toLowerCase()))) return false;
     }
     return true;
+  });
+
+  // Apply sorting to filtered files
+  const displayedFiles = filteredFiles.slice().sort((a: any, b: any) => {
+    if (!sortBy) return 0;
+    let av: any = a[sortBy as keyof typeof a] ?? '';
+    let bv: any = b[sortBy as keyof typeof b] ?? '';
+
+    // special handling
+    if (sortBy === 'size') {
+      av = Number(a.size || 0);
+      bv = Number(b.size || 0);
+    } else if (sortBy === 'createdAt' || sortBy === 'date') {
+      av = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      bv = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+    } else if (sortBy === 'tags') {
+      av = Array.isArray(a.tags) ? a.tags.join(',') : (a.tags || '');
+      bv = Array.isArray(b.tags) ? b.tags.join(',') : (b.tags || '');
+    } else {
+      av = String(av || '').toLowerCase();
+      bv = String(bv || '').toLowerCase();
+    }
+
+    if (av < bv) return sortDir === 'asc' ? -1 : 1;
+    if (av > bv) return sortDir === 'asc' ? 1 : -1;
+    return 0;
   });
 
   useEffect(() => {
@@ -558,7 +598,7 @@ export default function FilesPage() {
             </Box>
 
             {pendingUploads.map(p => (
-              <Box key={p.id} sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
+              <Box key={p.id} tabIndex={0} sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1, '&:hover .row-actions, &:focus-within .row-actions': { visibility: 'visible', opacity: 1 }, '.row-actions': { visibility: 'hidden', opacity: 0, transition: 'opacity .15s ease' } }}>
                 <Box sx={{ flex: 1 }}>
                   <Tooltip title={p.name || ''} arrow>
                     <Typography sx={{ fontWeight: 500 }}>{truncate(p.name || '', 35)} <Typography component="span" sx={{ color: 'text.secondary' }}>({(p.size / 1024).toFixed(1)} KB)</Typography></Typography>
@@ -568,7 +608,7 @@ export default function FilesPage() {
                       <LinearProgress variant="determinate" value={p.progress} sx={{ mt: 1 }} />
                       {p.status === 'error' && <Typography color="error" sx={{ mt: 1 }}>{p.error}</Typography>}
                     </Box>
-                    <Box sx={{ minWidth: 96, display: 'flex', gap: 1 }}>
+                    <Box className="row-actions" sx={{ minWidth: 96, display: 'flex', gap: 1, alignItems: 'center' }}>
                       {p.status === 'pending' && <Button size="small" onClick={() => startUpload(p as any)} variant="contained">Upload</Button>}
                       {p.status === 'uploading' && <Button size="small" onClick={() => cancelUpload(p.id)} variant="outlined">Hủy</Button>}
                       {p.status === 'error' && (
@@ -591,13 +631,16 @@ export default function FilesPage() {
           <Table>
             <TableHead>
               <TableRow>
-                <TableCell>Tên file</TableCell>
+                <TableCell sx={{ cursor: 'pointer' }} onClick={() => toggleSort('originalName')} onKeyDown={(e) => { if(e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleSort('originalName'); } }} tabIndex={0} role="button" aria-pressed={sortBy === 'originalName'}>
+                  Tên file {sortBy === 'originalName' ? (sortDir === 'asc' ? <ArrowUpwardIcon sx={{ fontSize: 14, ml: 0.5 }} /> : <ArrowDownwardIcon sx={{ fontSize: 14, ml: 0.5 }} />) : null}
+                </TableCell>
                 {columnsVisible.description && (
                   <TableCell sx={{ width: colWidths.description, minWidth: MIN_COL_WIDTH, position: 'relative' }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 1, cursor: 'pointer' }} onClick={() => toggleSort('originalName')} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleSort('originalName'); } }} tabIndex={0} role="button" aria-pressed={sortBy === 'originalName'}>
                         <Box component="span">Mô tả</Box>
                         <Typography component="span" variant="caption" sx={{ color: 'text.secondary' }}>{colWidths.description}px</Typography>
+                        {sortBy === 'description' ? (sortDir === 'asc' ? <ArrowUpwardIcon sx={{ fontSize: 14, ml: 0.5 }} /> : <ArrowDownwardIcon sx={{ fontSize: 14, ml: 0.5 }} />) : null}
                       </Box>
                       <Tooltip title={`${colWidths.description}px`} arrow>
                         <Box
@@ -608,7 +651,6 @@ export default function FilesPage() {
                           aria-orientation="horizontal"
                           aria-label="Resize description column"
                           aria-valuemin={MIN_COL_WIDTH}
-                          aria-valuemax={1000}
                           aria-valuenow={colWidths.description}
                           sx={{ width: 12, cursor: 'col-resize', height: '100%', ml: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', '&:hover': { backgroundColor: 'action.hover' }, '&:focus': { outline: '2px solid', outlineColor: 'primary.main', backgroundColor: 'action.selected' } }}
                         >
@@ -621,7 +663,9 @@ export default function FilesPage() {
                 {columnsVisible.tags && (
                   <TableCell sx={{ width: colWidths.tags, minWidth: MIN_COL_WIDTH, position: 'relative' }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <Box component="span">Tags</Box>
+                      <Box component="span" sx={{ cursor: 'pointer' }} onClick={() => toggleSort('tags')} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleSort('tags'); } }} tabIndex={0} role="button" aria-pressed={sortBy === 'tags'}>
+                        Tags {sortBy === 'tags' ? (sortDir === 'asc' ? <ArrowUpwardIcon sx={{ fontSize: 14, ml: 0.5 }} /> : <ArrowDownwardIcon sx={{ fontSize: 14, ml: 0.5 }} />) : null}
+                      </Box>
                       <Tooltip title={`${colWidths.tags}px`} arrow>
                         <Box onMouseDown={(e) => onStartResize('tags', e)} onKeyDown={(e) => onHandleKeyDown('tags', e)} tabIndex={0} role="separator" aria-label="Resize tags column" aria-valuemin={MIN_COL_WIDTH} aria-valuenow={colWidths.tags} sx={{ width: 10, cursor: 'col-resize', height: '100%', ml: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                           <Box component="span" sx={{ width: 3, height: 20, backgroundColor: 'grey.400', borderRadius: 1 }} />
@@ -633,7 +677,9 @@ export default function FilesPage() {
                 {columnsVisible.fileType && (
                   <TableCell sx={{ width: colWidths.fileType, minWidth: MIN_COL_WIDTH, position: 'relative' }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <Box component="span">Loại</Box>
+                      <Box component="span" sx={{ cursor: 'pointer' }} onClick={() => toggleSort('fileType')} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleSort('fileType'); } }} tabIndex={0} role="button" aria-pressed={sortBy === 'fileType'}>
+                        Loại {sortBy === 'fileType' ? (sortDir === 'asc' ? <ArrowUpwardIcon sx={{ fontSize: 14, ml: 0.5 }} /> : <ArrowDownwardIcon sx={{ fontSize: 14, ml: 0.5 }} />) : null}
+                      </Box>
                       <Tooltip title={`${colWidths.fileType}px`} arrow>
                         <Box onMouseDown={(e) => onStartResize('fileType', e)} onKeyDown={(e) => onHandleKeyDown('fileType', e)} tabIndex={0} role="separator" aria-label="Resize file type column" aria-valuemin={MIN_COL_WIDTH} aria-valuenow={colWidths.fileType} sx={{ width: 10, cursor: 'col-resize', height: '100%', ml: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                           <Box component="span" sx={{ width: 3, height: 20, backgroundColor: 'grey.400', borderRadius: 1 }} />
@@ -645,7 +691,9 @@ export default function FilesPage() {
                 {columnsVisible.notes && (
                   <TableCell sx={{ width: colWidths.notes, minWidth: MIN_COL_WIDTH, position: 'relative' }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <Box component="span">Ghi chú</Box>
+                      <Box component="span" sx={{ cursor: 'pointer' }} onClick={() => toggleSort('notes')} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleSort('notes'); } }} tabIndex={0} role="button" aria-pressed={sortBy === 'notes'}>
+                        Ghi chú {sortBy === 'notes' ? (sortDir === 'asc' ? <ArrowUpwardIcon sx={{ fontSize: 14, ml: 0.5 }} /> : <ArrowDownwardIcon sx={{ fontSize: 14, ml: 0.5 }} />) : null}
+                      </Box>
                       <Tooltip title={`${colWidths.notes}px`} arrow>
                         <Box onMouseDown={(e) => onStartResize('notes', e)} onKeyDown={(e) => onHandleKeyDown('notes', e)} tabIndex={0} role="separator" aria-label="Resize notes column" aria-valuemin={MIN_COL_WIDTH} aria-valuenow={colWidths.notes} sx={{ width: 10, cursor: 'col-resize', height: '100%', ml: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                           <Box component="span" sx={{ width: 3, height: 20, backgroundColor: 'grey.400', borderRadius: 1 }} />
@@ -657,7 +705,9 @@ export default function FilesPage() {
                 {columnsVisible.size && (
                   <TableCell sx={{ width: colWidths.size, minWidth: MIN_COL_WIDTH, position: 'relative' }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <Box component="span">Kích thước</Box>
+                      <Box component="span" sx={{ cursor: 'pointer' }} onClick={() => toggleSort('size')} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleSort('size'); } }} tabIndex={0} role="button" aria-pressed={sortBy === 'size'}>
+                        Kích thước {sortBy === 'size' ? (sortDir === 'asc' ? <ArrowUpwardIcon sx={{ fontSize: 14, ml: 0.5 }} /> : <ArrowDownwardIcon sx={{ fontSize: 14, ml: 0.5 }} />) : null}
+                      </Box>
                       <Tooltip title={`${colWidths.size}px`} arrow>
                         <Box onMouseDown={(e) => onStartResize('size', e)} onKeyDown={(e) => onHandleKeyDown('size', e)} tabIndex={0} role="separator" aria-label="Resize size column" aria-valuemin={MIN_COL_WIDTH} aria-valuenow={colWidths.size} sx={{ width: 10, cursor: 'col-resize', height: '100%', ml: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                           <Box component="span" sx={{ width: 3, height: 20, backgroundColor: 'grey.400', borderRadius: 1 }} />
@@ -669,7 +719,9 @@ export default function FilesPage() {
                 {columnsVisible.creator && (
                   <TableCell sx={{ width: colWidths.creator, minWidth: MIN_COL_WIDTH, position: 'relative' }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <Box component="span">Người tạo</Box>
+                      <Box component="span" sx={{ cursor: 'pointer' }} onClick={() => toggleSort('createdByName')} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleSort('createdByName'); } }} tabIndex={0} role="button" aria-pressed={sortBy === 'createdByName'}>
+                        Người tạo {sortBy === 'createdByName' ? (sortDir === 'asc' ? <ArrowUpwardIcon sx={{ fontSize: 14, ml: 0.5 }} /> : <ArrowDownwardIcon sx={{ fontSize: 14, ml: 0.5 }} />) : null}
+                      </Box>
                       <Tooltip title={`${colWidths.creator}px`} arrow>
                         <Box onMouseDown={(e) => onStartResize('creator', e)} onKeyDown={(e) => onHandleKeyDown('creator', e)} tabIndex={0} role="separator" aria-label="Resize creator column" aria-valuemin={MIN_COL_WIDTH} aria-valuenow={colWidths.creator} sx={{ width: 10, cursor: 'col-resize', height: '100%', ml: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                           <Box component="span" sx={{ width: 3, height: 20, backgroundColor: 'grey.400', borderRadius: 1 }} />
@@ -681,7 +733,9 @@ export default function FilesPage() {
                 {columnsVisible.date && (
                   <TableCell sx={{ width: colWidths.date, minWidth: MIN_COL_WIDTH, position: 'relative' }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <Box component="span">Ngày tạo</Box>
+                      <Box component="span" sx={{ cursor: 'pointer' }} onClick={() => toggleSort('createdAt')} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleSort('createdAt'); } }} tabIndex={0} role="button" aria-pressed={sortBy === 'createdAt'}>
+                        Ngày tạo {sortBy === 'createdAt' ? (sortDir === 'asc' ? <ArrowUpwardIcon sx={{ fontSize: 14, ml: 0.5 }} /> : <ArrowDownwardIcon sx={{ fontSize: 14, ml: 0.5 }} />) : null}
+                      </Box>
                       <Tooltip title={`${colWidths.date}px`} arrow>
                         <Box onMouseDown={(e) => onStartResize('date', e)} onKeyDown={(e) => onHandleKeyDown('date', e)} tabIndex={0} role="separator" aria-label="Resize date column" aria-valuemin={MIN_COL_WIDTH} aria-valuenow={colWidths.date} sx={{ width: 10, cursor: 'col-resize', height: '100%', ml: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                           <Box component="span" sx={{ width: 3, height: 20, backgroundColor: 'grey.400', borderRadius: 1 }} />
@@ -694,8 +748,8 @@ export default function FilesPage() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {filteredFiles.map((f) => (
-                <TableRow key={f.id}>
+              {displayedFiles.map((f) => (
+                <TableRow key={f.id} tabIndex={0} sx={{ '&:hover .row-actions, &:focus-within .row-actions': { visibility: 'visible', opacity: 1 }, '.row-actions': { visibility: 'hidden', opacity: 0, transition: 'opacity .15s ease' } }}>
                   <TableCell sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     {getIconForFilename(f.originalName)}
                     <Box>
@@ -719,25 +773,27 @@ export default function FilesPage() {
                   {columnsVisible.creator && <TableCell sx={{ width: colWidths.creator, minWidth: MIN_COL_WIDTH }}>{f.createdByName || f.createdBy}</TableCell>}
                   {columnsVisible.date && <TableCell sx={{ width: colWidths.date, minWidth: MIN_COL_WIDTH }}>{new Date(f.createdAt).toLocaleString()}</TableCell>}
                   <TableCell align="right">
-                    <IconButton onClick={() => openPreview(f.id)} size="small">
-                      <VisibilityIcon />
-                    </IconButton>
-                    {hasPermission('files.download') && (
-                      <IconButton onClick={() => download(f.id)} size="small">
-                        <DownloadIcon />
+                    <Box className="row-actions" sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                      <IconButton onClick={() => openPreview(f.id)} size="small">
+                        <VisibilityIcon />
                       </IconButton>
-                    )}
-                    {hasPermission('files.update') && (
-                      <IconButton onClick={() => openEdit(f)} size="small">
-                        <EditIcon />
-                      </IconButton>
-                    )}
-                    {hasPermission('files.delete') && (
-                      <IconButton onClick={() => setConfirmDelete({ id: f.id, name: f.originalName })} size="small" color="error">
-                        <DeleteIcon />
-                      </IconButton>
-                    )}
-                  </TableCell>
+                      {hasPermission('files.download') && (
+                        <IconButton onClick={() => download(f.id)} size="small">
+                          <DownloadIcon />
+                        </IconButton>
+                      )}
+                      {hasPermission('files.update') && (
+                        <IconButton onClick={() => openEdit(f)} size="small">
+                          <EditIcon />
+                        </IconButton>
+                      )}
+                      {hasPermission('files.delete') && (
+                        <IconButton onClick={() => setConfirmDelete({ id: f.id, name: f.originalName })} size="small" color="error">
+                          <DeleteIcon />
+                        </IconButton>
+                      )}
+                    </Box>
+                  </TableCell> 
                 </TableRow>
               ))}
             </TableBody>
