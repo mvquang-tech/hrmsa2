@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
-import { hashPassword, generateToken, requireAuth, requireRole } from '@/lib/utils/auth';
+import { hashPassword } from '@/lib/utils/auth';
 import { loginSchema } from '@/lib/utils/validation';
-import { createErrorResponse, createSuccessResponse, authenticate } from '@/lib/middleware/auth';
+import { createErrorResponse, createSuccessResponse, authenticate, requireRole } from '@/lib/middleware/auth';
 import { UserRole } from '@/lib/types';
 
 export async function POST(request: NextRequest) {

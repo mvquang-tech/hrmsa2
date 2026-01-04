@@ -906,7 +906,7 @@ export default function MeetingsPage() {
           <DialogTitle>Xác nhận xóa</DialogTitle>
           <DialogContent>
             <Typography>
-              Bạn có chắc muốn xóa cuộc họp "{selectedMeeting.title}"?
+              Bạn có chắc muốn xóa cuộc họp {selectedMeeting.title}?
             </Typography>
           </DialogContent>
           <DialogActions>

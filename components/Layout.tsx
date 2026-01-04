@@ -69,6 +69,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   // Settings menu items
   const settingsItems = [
     { text: 'Telegram', icon: <TelegramIcon />, path: '/settings/telegram', permission: 'telegram.view' },
+    { text: 'File Lưu trữ', icon: <PeopleIcon />, path: '/files', permission: 'files.view' },
   ];
   const visibleSettingsItems = settingsItems.filter(item => hasPermission(item.permission));
 

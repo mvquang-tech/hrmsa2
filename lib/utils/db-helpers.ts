@@ -83,7 +83,7 @@ export function convertMySQLBooleans<T extends Record<string, any>>(
   const result = { ...obj };
   for (const field of fields) {
     if (field in result) {
-      result[field] = result[field] === 1 || result[field] === true;
+      (result as any)[field] = (result as any)[field] === 1 || (result as any)[field] === true;
     }
   }
   return result;
