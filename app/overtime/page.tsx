@@ -593,6 +593,9 @@ export default function OvertimePage() {
                           newDays[idx].date = e.target.value;
                           setDays(newDays);
                         }}
+                        InputLabelProps={{ shrink: true }}
+                        size="small"
+                        sx={{ minWidth: 160 }}
                       />
                       <Typography variant="body2" color="text.secondary">
                         {d.date ? new Date(d.date).toLocaleDateString('vi-VN', { weekday: 'long' }) : ''}
@@ -735,10 +738,6 @@ export default function OvertimePage() {
                                       </Box>
                                     );
                                   }) : <Typography variant="body2">Không có thời điểm</Typography>}
-                                </Box>
-
-                                <Box sx={{ mt: 1, display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
-                                  <Chip label={`${(dayTotal/3600).toFixed(2)} giờ`} color="success" size="small" />
                                 </Box>
 
                                 {(() => { grandTotal += dayTotal; return null; })()}
