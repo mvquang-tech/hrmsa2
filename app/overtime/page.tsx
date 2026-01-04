@@ -6,6 +6,7 @@ import { Layout } from '@/components/Layout';
 import { useAuth } from '@/hooks/useAuth';
 import {
   Box,
+  Avatar,
   Typography,
   Button,
   Table,
@@ -30,6 +31,8 @@ import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import InfoIcon from '@mui/icons-material/Info';
+import AccessTimeIcon from '@mui/icons-material/AccessTime';
+import EventIcon from '@mui/icons-material/Event';
 import { UserRole } from '@/lib/types';
 
 interface Employee {
@@ -670,28 +673,87 @@ export default function OvertimePage() {
             {detailLoading && <Typography>Đang tải...</Typography>}
             {!detailLoading && detailOvertime && (
               <Box>
-                <Typography variant="subtitle1" sx={{ mb: 1 }}>Nhân viên: {(() => {
-                  const emp = employees.find((e) => e.id === detailOvertime.employeeId);
-                  return emp ? `${emp.firstName} ${emp.lastName}` : `ID: ${detailOvertime.employeeId}`;
-                })()}</Typography>
-                <Chip label={getStatusLabel(detailOvertime.status)} color={getStatusColor(detailOvertime.status) as any} size="small" />
-                <Typography variant="body2" sx={{ mt: 2, mb: 1 }}><strong>Lý do:</strong> {detailOvertime.reason}</Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
+                  {(() => {
+                    const emp = employees.find((e) => e.id === detailOvertime.employeeId);
+                    const initials = emp ? `${(emp.firstName||'').charAt(0)}${(emp.lastName||'').charAt(0)}` : 'U';
+                    return (
+                      <>
+                        <Avatar sx={{ bgcolor: 'primary.main' }}>{initials}</Avatar>
+                        <Box>
+                          <Typography variant="subtitle1">{emp ? `${emp.firstName} ${emp.lastName}` : `ID: ${detailOvertime.employeeId}`}</Typography>
+                          <Typography variant="caption" color="text.secondary">{emp?.code ?? ''}</Typography>
+                        </Box>
+                      </>
+                    );
+                  })()}
+                  <Box sx={{ flex: 1 }} />
+                  <Chip label={getStatusLabel(detailOvertime.status)} color={getStatusColor(detailOvertime.status) as any} size="small" />
+                </Box>
+                <Paper sx={{ p: 1, backgroundColor: 'background.default', mb: 2 }} elevation={0}>
+                  <Typography variant="body2" sx={{ m: 0 }}><strong>Lý do:</strong> {detailOvertime.reason}</Typography>
+                </Paper>
 
                 {detailOvertime.days && detailOvertime.days.length > 0 ? (
-                  <>
-                    <Typography variant="subtitle2">Danh sách ngày</Typography>
-                    {detailOvertime.days.map((d: any) => {
-                      const slots = Array.isArray(d.slots) ? d.slots : [];
-                      return (
-                        <Paper key={d.date} sx={{ p: 1, mb: 1 }} elevation={1}>
-                          <Typography variant="body2"><strong>{new Date(d.date).toLocaleDateString('vi-VN')}</strong></Typography>
-                          {slots.length > 0 ? slots.map((s: any, idx: number) => (
-                            <Typography key={idx} variant="body2">• { String(s.start_time).slice(0,5) } - { String(s.end_time).slice(0,5) }</Typography>
-                          )) : <Typography variant="body2">Không có thời điểm</Typography>}
-                        </Paper>
-                      );
-                    })}
-                  </>
+                  (() => {
+                    // Helper to compute slot seconds
+                    const slotSeconds = (s: any) => {
+                      if (!s.start_time || !s.end_time) return 0;
+                      const [sh, sm] = String(s.start_time).split(":").map((v: string) => parseInt(v, 10));
+                      const [eh, em] = String(s.end_time).split(":").map((v: string) => parseInt(v, 10));
+                      const startSec = sh * 3600 + sm * 60;
+                      const endSec = eh * 3600 + em * 60;
+                      return endSec > startSec ? endSec - startSec : 0;
+                    };
+                    let grandTotal = 0;
+                    return (
+                      <>
+                        <Typography variant="subtitle2" sx={{ mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}><EventIcon fontSize="small" color="action" />Danh sách ngày</Typography>
+                        <Box>
+                          {detailOvertime.days.map((d: any) => {
+                            const slots = Array.isArray(d.slots) ? d.slots : [];
+                            let dayTotal = 0;
+                            return (
+                              <Paper key={d.date} sx={{ p: 2, mb: 2, borderLeft: '6px solid', borderColor: 'primary.main' }} elevation={1}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                  <Box>
+                                    <Typography variant="body1" sx={{ fontWeight: 600 }}>{new Date(d.date).toLocaleDateString('vi-VN')}</Typography>
+                                    <Typography variant="caption" color="text.secondary">{new Date(d.date).toLocaleDateString('vi-VN', { weekday: 'long' })}</Typography>
+                                  </Box>
+                                  <Chip label={`${((d.total_seconds || 0) / 3600).toFixed(2)} giờ`} color="success" size="small" />
+                                </Box>
+
+                                <Box sx={{ mt: 1 }}>
+                                  {slots.length > 0 ? slots.map((s: any, idx: number) => {
+                                    const sec = slotSeconds(s);
+                                    dayTotal += sec;
+                                    return (
+                                      <Box key={idx} sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                                        <AccessTimeIcon fontSize="small" color="action" />
+                                        <Typography variant="body2">{String(s.start_time).slice(0,5)} - {String(s.end_time).slice(0,5)}</Typography>
+                                        <Chip label={`${(sec/3600).toFixed(2)} giờ`} size="small" variant="outlined" sx={{ ml: 1 }} />
+                                      </Box>
+                                    );
+                                  }) : <Typography variant="body2">Không có thời điểm</Typography>}
+                                </Box>
+
+                                <Box sx={{ mt: 1, display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
+                                  <Chip label={`${(dayTotal/3600).toFixed(2)} giờ`} color="success" size="small" />
+                                </Box>
+
+                                {(() => { grandTotal += dayTotal; return null; })()}
+                              </Paper>
+                            );
+                          })}
+
+                          <Box sx={{ mt: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Typography variant="h6" sx={{ fontWeight: 700 }}>Tổng cộng tất cả ngày:</Typography>
+                            <Chip label={`${(grandTotal/3600).toFixed(2)} giờ`} color="error" size="medium" />
+                          </Box>
+                        </Box>
+                      </>
+                    );
+                  })()
                 ) : (
                   <>
                     <Typography variant="body2"><strong>Ngày:</strong> {detailOvertime.date ? new Date(detailOvertime.date).toLocaleDateString('vi-VN') : '-'}</Typography>
