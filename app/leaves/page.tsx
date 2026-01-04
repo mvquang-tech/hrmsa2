@@ -423,8 +423,12 @@ export default function LeavesPage() {
 
   // Check if user can edit/delete specific leave request
   const canEditItem = (leave: Leave) => {
+    // Only allow editing pending requests
+    if (leave.status !== 'pending') {
+      return false;
+    }
     // User can edit their own pending requests, or if they have update permission
-    if (leave.employeeId === user?.employeeId && leave.status === 'pending') {
+    if (leave.employeeId === user?.employeeId) {
       return true;
     }
     return canUpdate;

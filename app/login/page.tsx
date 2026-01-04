@@ -325,7 +325,8 @@ export default function LoginPage() {
             {/* Footer */}
             <Box sx={{ textAlign: 'center', mt: 3 }}>
               <Typography variant="body2" color="text.secondary">
-                © 2024 HRMS - Human Resource Management System
+                © 2026 HRMS - admin / admin123
+                
               </Typography>
             </Box>
           </Paper>

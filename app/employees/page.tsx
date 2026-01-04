@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Layout } from '@/components/Layout';
 import { useAuth } from '@/hooks/useAuth';
@@ -25,12 +25,29 @@ import {
   MenuItem,
   Chip,
   Tooltip,
+  InputAdornment,
+  FormControl,
+  InputLabel,
+  Select,
+  Menu,
+  FormGroup,
+  FormControlLabel,
+  Checkbox,
+  Divider,
+  Collapse,
+  Grid,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import SearchIcon from '@mui/icons-material/Search';
+import FilterListIcon from '@mui/icons-material/FilterList';
+import ViewColumnIcon from '@mui/icons-material/ViewColumn';
+import ClearIcon from '@mui/icons-material/Clear';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 
 interface Department {
   id: number;
@@ -51,6 +68,26 @@ interface Employee {
   status: string;
   hasAccount?: boolean;
 }
+
+// Column configuration
+interface ColumnConfig {
+  id: string;
+  label: string;
+  visible: boolean;
+  minWidth?: number;
+}
+
+const defaultColumns: ColumnConfig[] = [
+  { id: 'code', label: 'Mã NV', visible: true, minWidth: 100 },
+  { id: 'fullName', label: 'Họ tên', visible: true, minWidth: 150 },
+  { id: 'email', label: 'Email', visible: true, minWidth: 180 },
+  { id: 'phone', label: 'Điện thoại', visible: false, minWidth: 120 },
+  { id: 'department', label: 'Phòng ban', visible: true, minWidth: 130 },
+  { id: 'position', label: 'Chức vụ', visible: true, minWidth: 120 },
+  { id: 'dateOfJoin', label: 'Ngày vào làm', visible: false, minWidth: 120 },
+  { id: 'status', label: 'Trạng thái', visible: true, minWidth: 100 },
+  { id: 'hasAccount', label: 'Tài khoản', visible: true, minWidth: 100 },
+];
 
 export default function EmployeesPage() {
   const { isAuthenticated, token, isLoading, hasPermission } = useAuth();
@@ -84,6 +121,17 @@ export default function EmployeesPage() {
   const [accountOpen, setAccountOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [accountForm, setAccountForm] = useState({ username: '', password: '' });
+
+  // Search and Filter states
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterDepartment, setFilterDepartment] = useState<string>('all');
+  const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [filterAccount, setFilterAccount] = useState<string>('all');
+  const [showFilters, setShowFilters] = useState(false);
+
+  // Column visibility
+  const [columns, setColumns] = useState<ColumnConfig[]>(defaultColumns);
+  const [columnMenuAnchor, setColumnMenuAnchor] = useState<null | HTMLElement>(null);
 
   useEffect(() => {
     if (isLoading) return;
@@ -300,6 +348,73 @@ export default function EmployeesPage() {
     }
   };
 
+  // Column visibility handlers
+  const handleColumnMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setColumnMenuAnchor(event.currentTarget);
+  };
+
+  const handleColumnMenuClose = () => {
+    setColumnMenuAnchor(null);
+  };
+
+  const toggleColumnVisibility = (columnId: string) => {
+    setColumns(prev => 
+      prev.map(col => 
+        col.id === columnId ? { ...col, visible: !col.visible } : col
+      )
+    );
+  };
+
+  const isColumnVisible = (columnId: string) => {
+    return columns.find(col => col.id === columnId)?.visible ?? true;
+  };
+
+  // Filter handlers
+  const clearFilters = () => {
+    setSearchTerm('');
+    setFilterDepartment('all');
+    setFilterStatus('all');
+    setFilterAccount('all');
+  };
+
+  const hasActiveFilters = searchTerm || filterDepartment !== 'all' || filterStatus !== 'all' || filterAccount !== 'all';
+
+  // Filtered employees
+  const filteredEmployees = useMemo(() => {
+    return employees.filter(emp => {
+      // Search filter
+      if (searchTerm) {
+        const search = searchTerm.toLowerCase();
+        const fullName = `${emp.firstName} ${emp.lastName}`.toLowerCase();
+        const matchesSearch = 
+          emp.code.toLowerCase().includes(search) ||
+          fullName.includes(search) ||
+          emp.email.toLowerCase().includes(search) ||
+          (emp.phone && emp.phone.includes(search)) ||
+          (emp.position && emp.position.toLowerCase().includes(search));
+        if (!matchesSearch) return false;
+      }
+
+      // Department filter
+      if (filterDepartment !== 'all' && emp.departmentId.toString() !== filterDepartment) {
+        return false;
+      }
+
+      // Status filter
+      if (filterStatus !== 'all' && emp.status !== filterStatus) {
+        return false;
+      }
+
+      // Account filter
+      if (filterAccount !== 'all') {
+        if (filterAccount === 'yes' && !emp.hasAccount) return false;
+        if (filterAccount === 'no' && emp.hasAccount) return false;
+      }
+
+      return true;
+    });
+  }, [employees, searchTerm, filterDepartment, filterStatus, filterAccount]);
+
   if (!isAuthenticated) return null;
 
   return (
@@ -307,84 +422,267 @@ export default function EmployeesPage() {
       <Box>
         {success && <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert>}
         
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
+        {/* Header */}
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
           <Typography variant="h4">Nhân sự</Typography>
-          {canCreate && (
-            <Button variant="contained" startIcon={<AddIcon />} onClick={() => handleOpen()}>
-              Thêm nhân viên
-            </Button>
-          )}
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            {canCreate && (
+              <Button variant="contained" startIcon={<AddIcon />} onClick={() => handleOpen()}>
+                Thêm nhân viên
+              </Button>
+            )}
+          </Box>
         </Box>
+
+        {/* Search and Filter Bar */}
+        <Paper sx={{ p: 2, mb: 2 }}>
+          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
+            {/* Search */}
+            <TextField
+              size="small"
+              placeholder="Tìm kiếm theo mã, tên, email, SĐT..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              sx={{ minWidth: 300, flexGrow: 1, maxWidth: 400 }}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon color="action" />
+                  </InputAdornment>
+                ),
+                endAdornment: searchTerm && (
+                  <InputAdornment position="end">
+                    <IconButton size="small" onClick={() => setSearchTerm('')}>
+                      <ClearIcon fontSize="small" />
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
+            />
+
+            {/* Filter Toggle */}
+            <Button
+              variant={showFilters ? 'contained' : 'outlined'}
+              startIcon={<FilterListIcon />}
+              onClick={() => setShowFilters(!showFilters)}
+              color={hasActiveFilters ? 'primary' : 'inherit'}
+              endIcon={showFilters ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+            >
+              Bộ lọc {hasActiveFilters && `(${[filterDepartment !== 'all', filterStatus !== 'all', filterAccount !== 'all'].filter(Boolean).length})`}
+            </Button>
+
+            {/* Column Visibility */}
+            <Tooltip title="Ẩn/Hiện cột">
+              <IconButton onClick={handleColumnMenuOpen}>
+                <ViewColumnIcon />
+              </IconButton>
+            </Tooltip>
+
+            {/* Clear Filters */}
+            {hasActiveFilters && (
+              <Button
+                size="small"
+                color="error"
+                startIcon={<ClearIcon />}
+                onClick={clearFilters}
+              >
+                Xóa bộ lọc
+              </Button>
+            )}
+          </Box>
+
+          {/* Expanded Filters */}
+          <Collapse in={showFilters}>
+            <Divider sx={{ my: 2 }} />
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6} md={3}>
+                <FormControl fullWidth size="small">
+                  <InputLabel>Phòng ban</InputLabel>
+                  <Select
+                    value={filterDepartment}
+                    label="Phòng ban"
+                    onChange={(e) => setFilterDepartment(e.target.value)}
+                  >
+                    <MenuItem value="all">Tất cả phòng ban</MenuItem>
+                    {departments.map((dept) => (
+                      <MenuItem key={dept.id} value={dept.id.toString()}>
+                        {dept.name}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={12} sm={6} md={3}>
+                <FormControl fullWidth size="small">
+                  <InputLabel>Trạng thái</InputLabel>
+                  <Select
+                    value={filterStatus}
+                    label="Trạng thái"
+                    onChange={(e) => setFilterStatus(e.target.value)}
+                  >
+                    <MenuItem value="all">Tất cả trạng thái</MenuItem>
+                    <MenuItem value="active">Hoạt động</MenuItem>
+                    <MenuItem value="inactive">Tạm nghỉ</MenuItem>
+                    <MenuItem value="terminated">Đã nghỉ việc</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={12} sm={6} md={3}>
+                <FormControl fullWidth size="small">
+                  <InputLabel>Tài khoản</InputLabel>
+                  <Select
+                    value={filterAccount}
+                    label="Tài khoản"
+                    onChange={(e) => setFilterAccount(e.target.value)}
+                  >
+                    <MenuItem value="all">Tất cả</MenuItem>
+                    <MenuItem value="yes">Đã có tài khoản</MenuItem>
+                    <MenuItem value="no">Chưa có tài khoản</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+            </Grid>
+          </Collapse>
+        </Paper>
+
+        {/* Results count */}
+        <Box sx={{ mb: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Typography variant="body2" color="text.secondary">
+            Hiển thị {filteredEmployees.length} / {employees.length} nhân viên
+          </Typography>
+        </Box>
+
+        {/* Column Visibility Menu */}
+        <Menu
+          anchorEl={columnMenuAnchor}
+          open={Boolean(columnMenuAnchor)}
+          onClose={handleColumnMenuClose}
+          PaperProps={{
+            sx: { minWidth: 200, maxHeight: 400 }
+          }}
+        >
+          <Box sx={{ px: 2, py: 1 }}>
+            <Typography variant="subtitle2" color="text.secondary">
+              Ẩn/Hiện cột
+            </Typography>
+          </Box>
+          <Divider />
+          <FormGroup sx={{ px: 1 }}>
+            {columns.map((col) => (
+              <FormControlLabel
+                key={col.id}
+                control={
+                  <Checkbox
+                    checked={col.visible}
+                    onChange={() => toggleColumnVisibility(col.id)}
+                    size="small"
+                  />
+                }
+                label={col.label}
+                sx={{ 
+                  mx: 0, 
+                  '& .MuiFormControlLabel-label': { fontSize: '0.875rem' } 
+                }}
+              />
+            ))}
+          </FormGroup>
+        </Menu>
 
         <TableContainer component={Paper}>
           <Table>
             <TableHead>
               <TableRow>
-                <TableCell>Mã</TableCell>
-                <TableCell>Họ tên</TableCell>
-                <TableCell>Email</TableCell>
-                <TableCell>Phòng ban</TableCell>
-                <TableCell>Chức vụ</TableCell>
-                <TableCell>Trạng thái</TableCell>
-                <TableCell>Tài khoản</TableCell>
+                {isColumnVisible('code') && <TableCell>Mã NV</TableCell>}
+                {isColumnVisible('fullName') && <TableCell>Họ tên</TableCell>}
+                {isColumnVisible('email') && <TableCell>Email</TableCell>}
+                {isColumnVisible('phone') && <TableCell>Điện thoại</TableCell>}
+                {isColumnVisible('department') && <TableCell>Phòng ban</TableCell>}
+                {isColumnVisible('position') && <TableCell>Chức vụ</TableCell>}
+                {isColumnVisible('dateOfJoin') && <TableCell>Ngày vào làm</TableCell>}
+                {isColumnVisible('status') && <TableCell>Trạng thái</TableCell>}
+                {isColumnVisible('hasAccount') && <TableCell>Tài khoản</TableCell>}
                 <TableCell align="right">Thao tác</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
-              {employees.map((emp) => {
-                const dept = departments.find((d) => d.id === emp.departmentId);
-                return (
-                  <TableRow key={emp.id}>
-                    <TableCell>{emp.code}</TableCell>
-                    <TableCell>{`${emp.firstName} ${emp.lastName}`}</TableCell>
-                    <TableCell>{emp.email}</TableCell>
-                    <TableCell>{dept?.name || '-'}</TableCell>
-                    <TableCell>{emp.position || '-'}</TableCell>
-                    <TableCell>
-                      <Chip 
-                        label={emp.status === 'active' ? 'Hoạt động' : emp.status === 'inactive' ? 'Tạm nghỉ' : 'Đã nghỉ'}
-                        size="small"
-                        color={emp.status === 'active' ? 'success' : emp.status === 'inactive' ? 'warning' : 'default'}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      {emp.hasAccount ? (
-                        <Chip 
-                          icon={<CheckCircleIcon />}
-                          label="Đã có"
-                          size="small"
-                          color="success"
-                          variant="outlined"
-                        />
-                      ) : canCreateAccount ? (
-                        <Tooltip title="Cấp tài khoản">
-                          <IconButton 
-                            size="small" 
-                            color="primary"
-                            onClick={() => handleAccountOpen(emp)}
-                          >
-                            <PersonAddIcon />
-                          </IconButton>
-                        </Tooltip>
-                      ) : (
-                        <Chip label="Chưa có" size="small" variant="outlined" />
+              {filteredEmployees.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={columns.filter(c => c.visible).length + 1} align="center" sx={{ py: 4 }}>
+                    <Typography color="text.secondary">
+                      {employees.length === 0 ? 'Chưa có nhân viên nào' : 'Không tìm thấy nhân viên phù hợp'}
+                    </Typography>
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredEmployees.map((emp) => {
+                  const dept = departments.find((d) => d.id === emp.departmentId);
+                  return (
+                    <TableRow key={emp.id} hover>
+                      {isColumnVisible('code') && <TableCell>{emp.code}</TableCell>}
+                      {isColumnVisible('fullName') && <TableCell>{`${emp.firstName} ${emp.lastName}`}</TableCell>}
+                      {isColumnVisible('email') && <TableCell>{emp.email}</TableCell>}
+                      {isColumnVisible('phone') && <TableCell>{emp.phone || '-'}</TableCell>}
+                      {isColumnVisible('department') && <TableCell>{dept?.name || '-'}</TableCell>}
+                      {isColumnVisible('position') && <TableCell>{emp.position || '-'}</TableCell>}
+                      {isColumnVisible('dateOfJoin') && (
+                        <TableCell>
+                          {new Date(emp.dateOfJoin).toLocaleDateString('vi-VN')}
+                        </TableCell>
                       )}
-                    </TableCell>
-                    <TableCell align="right">
-                      {canUpdate && (
-                        <IconButton size="small" onClick={() => handleOpen(emp)}>
-                          <EditIcon />
-                        </IconButton>
+                      {isColumnVisible('status') && (
+                        <TableCell>
+                          <Chip 
+                            label={emp.status === 'active' ? 'Hoạt động' : emp.status === 'inactive' ? 'Tạm nghỉ' : 'Đã nghỉ'}
+                            size="small"
+                            color={emp.status === 'active' ? 'success' : emp.status === 'inactive' ? 'warning' : 'default'}
+                          />
+                        </TableCell>
                       )}
-                      {canDelete && (
-                        <IconButton size="small" onClick={() => handleDelete(emp.id)}>
-                          <DeleteIcon />
-                        </IconButton>
+                      {isColumnVisible('hasAccount') && (
+                        <TableCell>
+                          {emp.hasAccount ? (
+                            <Chip 
+                              icon={<CheckCircleIcon />}
+                              label="Đã có"
+                              size="small"
+                              color="success"
+                              variant="outlined"
+                            />
+                          ) : canCreateAccount ? (
+                            <Tooltip title="Cấp tài khoản">
+                              <IconButton 
+                                size="small" 
+                                color="primary"
+                                onClick={() => handleAccountOpen(emp)}
+                              >
+                                <PersonAddIcon />
+                              </IconButton>
+                            </Tooltip>
+                          ) : (
+                            <Chip label="Chưa có" size="small" variant="outlined" />
+                          )}
+                        </TableCell>
                       )}
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
+                      <TableCell align="right">
+                        {canUpdate && (
+                          <Tooltip title="Sửa">
+                            <IconButton size="small" onClick={() => handleOpen(emp)}>
+                              <EditIcon />
+                            </IconButton>
+                          </Tooltip>
+                        )}
+                        {canDelete && (
+                          <Tooltip title="Xóa">
+                            <IconButton size="small" color="error" onClick={() => handleDelete(emp.id)}>
+                              <DeleteIcon />
+                            </IconButton>
+                          </Tooltip>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              )}
             </TableBody>
           </Table>
         </TableContainer>

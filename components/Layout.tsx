@@ -22,6 +22,7 @@ import PeopleIcon from '@mui/icons-material/People';
 import BusinessIcon from '@mui/icons-material/Business';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import EventIcon from '@mui/icons-material/Event';
+import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import LogoutIcon from '@mui/icons-material/Logout';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import SecurityIcon from '@mui/icons-material/Security';
@@ -40,6 +41,7 @@ const menuItems = [
   { text: 'Phòng ban', icon: <BusinessIcon />, path: '/departments', permission: 'departments.view' },
   { text: 'Ngoài giờ', icon: <AccessTimeIcon />, path: '/overtime', permission: 'overtime.view' },
   { text: 'Nghỉ phép', icon: <EventIcon />, path: '/leaves', permission: 'leaves.view' },
+  { text: 'Lịch họp', icon: <CalendarMonthIcon />, path: '/meetings', permission: 'meetings.view' },
 ];
 
 const adminMenuItems = [
@@ -212,4 +214,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
     </Box>
   );
 }
+
+// Default export for compatibility with import Layout from '@/components/Layout'
+export default Layout;
+
 

@@ -95,6 +95,46 @@ export async function requirePermission(user: JWTPayload, permissionCode: string
   }
 }
 
+/**
+ * Non-throwing permission check
+ */
+export async function checkPermission(user: JWTPayload, permissionCode: string): Promise<boolean> {
+  if (user.role === UserRole.ADMIN) return true;
+  return await hasPermission(user.userId, permissionCode);
+}
+
+/**
+ * Get authenticated user info from request (token -> DB lookup)
+ */
+export async function getAuthUser(request: NextRequest): Promise<any | null> {
+  const payload = authenticate(request);
+  if (!payload) return null;
+
+  try {
+    const rows = await query('SELECT id, username, email, role, employeeId FROM users WHERE id = ?', [payload.userId]);
+    const user = Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
+    if (user) {
+      return {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        role: user.role,
+        employeeId: user.employeeId || payload.employeeId || null,
+      };
+    }
+
+    return {
+      id: payload.userId,
+      username: payload.username,
+      role: payload.role,
+      employeeId: payload.employeeId || null,
+    };
+  } catch (error) {
+    console.error('Error in getAuthUser:', error);
+    return null;
+  }
+}
+
 export function createErrorResponse(message: string, status: number = 400): NextResponse {
   return NextResponse.json(
     { success: false, error: message },
