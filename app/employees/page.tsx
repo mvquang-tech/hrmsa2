@@ -140,7 +140,6 @@ export default function EmployeesPage() {
   const [academicTitles, setAcademicTitles] = useState<{id:number;code:string;name:string;}[]>([]);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Employee | null>(null);
-  const [moreOpen, setMoreOpen] = useState(false);
   const [formData, setFormData] = useState({
     code: '',
     firstName: '',
@@ -863,280 +862,315 @@ export default function EmployeesPage() {
                 {error}
               </Alert>
             )}
-            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, mt: 1 }}>
-              <TextField
-                fullWidth
-                label="Mã nhân viên"
-                value={formData.code}
-                onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-                required
-              />
-              <TextField
-                fullWidth
-                label="Họ"
-                value={formData.firstName}
-                onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                required
-              />
-              <TextField
-                fullWidth
-                label="Tên"
-                value={formData.lastName}
-                onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                required
-              />
-              <TextField
-                fullWidth
-                label="Email"
-                type="email"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                required
-              />
-              <TextField
-                fullWidth
-                label="Số điện thoại"
-                value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-              />
-              <TextField
-                fullWidth
-                label="Ngày sinh"
-                type="date"
-                value={formData.dateOfBirth}
-                onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
-                InputLabelProps={{ shrink: true }}
-              />
-              <TextField
-                fullWidth
-                label="Địa chỉ"
-                multiline
-                rows={2}
-                sx={{ gridColumn: '1 / -1' }}
-                value={formData.address}
-                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-              />
-              <TextField
-                fullWidth
-                label="Ngày vào làm"
-                type="date"
-                value={formData.dateOfJoin}
-                onChange={(e) => setFormData({ ...formData, dateOfJoin: e.target.value })}
-                InputLabelProps={{ shrink: true }}
-                required
-              />
-              <TextField
-                fullWidth
-                select
-                label="Phòng ban"
-                value={formData.departmentId}
-                onChange={(e) => setFormData({ ...formData, departmentId: e.target.value })}
-                required
-              >
-                {departments.map((dept) => (
-                  <MenuItem key={dept.id} value={dept.id}>
-                    {dept.name}
-                  </MenuItem>
-                ))}
-              </TextField>
-              <TextField
-                fullWidth
-                label="Chức vụ"
-                value={formData.position}
-                onChange={(e) => setFormData({ ...formData, position: e.target.value })}
-              />
-              <TextField
-                fullWidth
-                select
-                label="Trình độ đào tạo"
-                value={formData.educationLevelId}
-                onChange={(e) => setFormData({ ...formData, educationLevelId: e.target.value })}
-              >
-                <MenuItem value="">Chưa chọn</MenuItem>
-                {educationLevels.map((lvl) => (
-                  <MenuItem key={lvl.id} value={String(lvl.id)}>
-                    {lvl.name}
-                  </MenuItem>
-                ))}
-              </TextField>
+            <Grid container spacing={2} sx={{ mt: 1 }}>
+              {/* Basic Info */}
+              <Grid item xs={12}>
+                <Typography variant="subtitle2">Thông tin cơ bản</Typography>
+                <Divider sx={{ mb: 1 }} />
+              </Grid>
 
-              <TextField
-                fullWidth
-                select
-                label="Chức danh khoa học"
-                value={formData.academicTitleId}
-                onChange={(e) => setFormData({ ...formData, academicTitleId: e.target.value })}
-              >
-                <MenuItem value="">Chưa chọn</MenuItem>
-                {academicTitles.map((t) => (
-                  <MenuItem key={t.id} value={String(t.id)}>
-                    {t.name}
-                  </MenuItem>
-                ))}
-              </TextField>
-
-              {/* Toggle more info */}
-              <Box sx={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
-                <Button
-                  variant="outlined"
-                  size="small"
-                  onClick={() => setMoreOpen((s) => !s)}
-                  endIcon={<ExpandMoreIcon sx={{ transform: moreOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 200ms' }} />}
+              <Grid item xs={12} sm={3}>
+                <TextField
+                  fullWidth
+                  label="Mã nhân viên"
+                  value={formData.code}
+                  onChange={(e) => setFormData({ ...formData, code: e.target.value })}
+                  required
+                />
+              </Grid>
+              <Grid item xs={12} sm={3}>
+                <TextField
+                  fullWidth
+                  label="Họ"
+                  value={formData.firstName}
+                  onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                  required
+                />
+              </Grid>
+              <Grid item xs={12} sm={3}>
+                <TextField
+                  fullWidth
+                  label="Tên"
+                  value={formData.lastName}
+                  onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                  required
+                />
+              </Grid>
+              <Grid item xs={12} sm={3}>
+                <TextField
+                  fullWidth
+                  select
+                  label="Giới tính"
+                  value={formData.gender}
+                  onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
                 >
-                  Thông tin bổ sung
-                </Button>
-                <Typography variant="body2" color="text.secondary">Hiển thị/ẩn các trường chi tiết (CCCD, thời gian, nơi đào tạo)</Typography>
-              </Box>
+                  <MenuItem value="">Chưa chọn</MenuItem>
+                  <MenuItem value="male">Nam</MenuItem>
+                  <MenuItem value="female">Nữ</MenuItem>
+                </TextField>
+              </Grid>
 
-              <Collapse in={moreOpen} sx={{ gridColumn: '1 / -1', width: '100%', mt: 1 }}>
-                <Grid container spacing={2}>
-                  <Grid item xs={12} sm={6}>
-                    <TextField
-                      fullWidth
-                      label="Nơi đào tạo"
-                      value={formData.placeOfTraining}
-                      onChange={(e) => setFormData({ ...formData, placeOfTraining: e.target.value })}
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={6}>
-                    <TextField
-                      fullWidth
-                      select
-                      label="Giới tính"
-                      value={formData.gender}
-                      onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
-                    >
-                      <MenuItem value="">Chưa chọn</MenuItem>
-                      <MenuItem value="male">Nam</MenuItem>
-                      <MenuItem value="female">Nữ</MenuItem>
-                    </TextField>
-                  </Grid>
+              <Grid item xs={12} sm={4}>
+                <TextField
+                  fullWidth
+                  label="Ngày sinh"
+                  type="date"
+                  value={formData.dateOfBirth}
+                  onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={8}>
+                <TextField
+                  fullWidth
+                  label="Nơi đào tạo"
+                  value={formData.placeOfTraining}
+                  onChange={(e) => setFormData({ ...formData, placeOfTraining: e.target.value })}
+                />
+              </Grid>
 
-                  <Grid item xs={12} sm={4}>
-                    <TextField
-                      fullWidth
-                      label="Số CCCD"
-                      value={formData.cccdNumber}
-                      onChange={(e) => setFormData({ ...formData, cccdNumber: e.target.value })}
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={4}>
-                    <TextField
-                      fullWidth
-                      label="Ngày cấp CCCD"
-                      type="date"
-                      value={formData.cccdIssuedDate}
-                      onChange={(e) => setFormData({ ...formData, cccdIssuedDate: e.target.value })}
-                      InputLabelProps={{ shrink: true }}
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={4}>
-                    <TextField
-                      fullWidth
-                      label="Nơi cấp CCCD"
-                      value={formData.cccdIssuedPlace}
-                      onChange={(e) => setFormData({ ...formData, cccdIssuedPlace: e.target.value })}
-                    />
-                  </Grid>
+              {/* Contact & ID */}
+              <Grid item xs={12}>
+                <Typography variant="subtitle2" sx={{ mt: 2 }}>Liên hệ & CMND/CCCD</Typography>
+                <Divider sx={{ mb: 1 }} />
+              </Grid>
 
-                  <Grid item xs={12} sm={6}>
-                    <TextField
-                      fullWidth
-                      label="Thời gian bắt đầu thực tập"
-                      type="date"
-                      value={formData.internshipStart}
-                      onChange={(e) => setFormData({ ...formData, internshipStart: e.target.value })}
-                      InputLabelProps={{ shrink: true }}
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={6}>
-                    <TextField
-                      fullWidth
-                      label="Thời gian kết thúc thực tập"
-                      type="date"
-                      value={formData.internshipEnd}
-                      onChange={(e) => setFormData({ ...formData, internshipEnd: e.target.value })}
-                      InputLabelProps={{ shrink: true }}
-                    />
-                  </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Email"
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  required
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Số điện thoại"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                />
+              </Grid>
 
-                  <Grid item xs={12} sm={6}>
-                    <TextField
-                      fullWidth
-                      label="Thời gian bắt đầu học việc"
-                      type="date"
-                      value={formData.trainingStart}
-                      onChange={(e) => setFormData({ ...formData, trainingStart: e.target.value })}
-                      InputLabelProps={{ shrink: true }}
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={6}>
-                    <TextField
-                      fullWidth
-                      label="Thời gian kết thúc học việc"
-                      type="date"
-                      value={formData.trainingEnd}
-                      onChange={(e) => setFormData({ ...formData, trainingEnd: e.target.value })}
-                      InputLabelProps={{ shrink: true }}
-                    />
-                  </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Địa chỉ"
+                  multiline
+                  rows={2}
+                  value={formData.address}
+                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                />
+              </Grid>
 
-                  <Grid item xs={12} sm={6}>
-                    <TextField
-                      fullWidth
-                      label="Thời gian bắt đầu thử việc"
-                      type="date"
-                      value={formData.probationStart}
-                      onChange={(e) => setFormData({ ...formData, probationStart: e.target.value })}
-                      InputLabelProps={{ shrink: true }}
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={6}>
-                    <TextField
-                      fullWidth
-                      label="Thời gian kết thúc thử việc"
-                      type="date"
-                      value={formData.probationEnd}
-                      onChange={(e) => setFormData({ ...formData, probationEnd: e.target.value })}
-                      InputLabelProps={{ shrink: true }}
-                    />
-                  </Grid>
+              <Grid item xs={12} sm={4}>
+                <TextField
+                  fullWidth
+                  label="Số CCCD"
+                  value={formData.cccdNumber}
+                  onChange={(e) => setFormData({ ...formData, cccdNumber: e.target.value })}
+                />
+              </Grid>
+              <Grid item xs={12} sm={4}>
+                <TextField
+                  fullWidth
+                  label="Ngày cấp CCCD"
+                  type="date"
+                  value={formData.cccdIssuedDate}
+                  onChange={(e) => setFormData({ ...formData, cccdIssuedDate: e.target.value })}
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={4}>
+                <TextField
+                  fullWidth
+                  label="Nơi cấp CCCD"
+                  value={formData.cccdIssuedPlace}
+                  onChange={(e) => setFormData({ ...formData, cccdIssuedPlace: e.target.value })}
+                />
+              </Grid>
 
-                  <Grid item xs={12} sm={6}>
-                    <TextField
-                      fullWidth
-                      label="Thời gian bắt đầu chính thức"
-                      type="date"
-                      value={formData.officialStart}
-                      onChange={(e) => setFormData({ ...formData, officialStart: e.target.value })}
-                      InputLabelProps={{ shrink: true }}
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={6}>
-                    <TextField
-                      fullWidth
-                      label="Thời gian kết thúc chính thức"
-                      type="date"
-                      value={formData.officialEnd}
-                      onChange={(e) => setFormData({ ...formData, officialEnd: e.target.value })}
-                      InputLabelProps={{ shrink: true }}
-                    />
-                  </Grid>
-                </Grid>
-              </Collapse>
+              {/* Job Info */}
+              <Grid item xs={12}>
+                <Typography variant="subtitle2" sx={{ mt: 2 }}>Công việc</Typography>
+                <Divider sx={{ mb: 1 }} />
+              </Grid>
 
-              <TextField
-                fullWidth
-                select
-                label="Trạng thái"
-                value={formData.status}
-                onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-              >
-                <MenuItem value="active">Hoạt động</MenuItem>
-                <MenuItem value="inactive">Không hoạt động</MenuItem>
-                <MenuItem value="terminated">Đã nghỉ việc</MenuItem>
-              </TextField>
-            </Box>
+              <Grid item xs={12} sm={4}>
+                <TextField
+                  fullWidth
+                  label="Ngày vào làm"
+                  type="date"
+                  value={formData.dateOfJoin}
+                  onChange={(e) => setFormData({ ...formData, dateOfJoin: e.target.value })}
+                  InputLabelProps={{ shrink: true }}
+                  required
+                />
+              </Grid>
+              <Grid item xs={12} sm={4}>
+                <TextField
+                  fullWidth
+                  select
+                  label="Phòng ban"
+                  value={formData.departmentId}
+                  onChange={(e) => setFormData({ ...formData, departmentId: e.target.value })}
+                  required
+                >
+                  {departments.map((dept) => (
+                    <MenuItem key={dept.id} value={dept.id}>
+                      {dept.name}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
+              <Grid item xs={12} sm={4}>
+                <TextField
+                  fullWidth
+                  label="Chức vụ"
+                  value={formData.position}
+                  onChange={(e) => setFormData({ ...formData, position: e.target.value })}
+                />
+              </Grid>
+
+              <Grid item xs={12} sm={4}>
+                <TextField
+                  fullWidth
+                  select
+                  label="Trình độ đào tạo"
+                  value={formData.educationLevelId}
+                  onChange={(e) => setFormData({ ...formData, educationLevelId: e.target.value })}
+                >
+                  <MenuItem value="">Chưa chọn</MenuItem>
+                  {educationLevels.map((lvl) => (
+                    <MenuItem key={lvl.id} value={String(lvl.id)}>
+                      {lvl.name}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
+              <Grid item xs={12} sm={4}>
+                <TextField
+                  fullWidth
+                  select
+                  label="Chức danh khoa học"
+                  value={formData.academicTitleId}
+                  onChange={(e) => setFormData({ ...formData, academicTitleId: e.target.value })}
+                >
+                  <MenuItem value="">Chưa chọn</MenuItem>
+                  {academicTitles.map((t) => (
+                    <MenuItem key={t.id} value={String(t.id)}>
+                      {t.name}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
+              <Grid item xs={12} sm={4}>
+                <TextField
+                  fullWidth
+                  select
+                  label="Trạng thái"
+                  value={formData.status}
+                  onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                >
+                  <MenuItem value="active">Hoạt động</MenuItem>
+                  <MenuItem value="inactive">Không hoạt động</MenuItem>
+                  <MenuItem value="terminated">Đã nghỉ việc</MenuItem>
+                </TextField>
+              </Grid>
+
+              {/* Employment Periods */}
+              <Grid item xs={12}>
+                <Typography variant="subtitle2" sx={{ mt: 2 }}>Thời gian làm việc & đào tạo</Typography>
+                <Divider sx={{ mb: 1 }} />
+              </Grid>
+
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Thời gian bắt đầu thực tập"
+                  type="date"
+                  value={formData.internshipStart}
+                  onChange={(e) => setFormData({ ...formData, internshipStart: e.target.value })}
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Thời gian kết thúc thực tập"
+                  type="date"
+                  value={formData.internshipEnd}
+                  onChange={(e) => setFormData({ ...formData, internshipEnd: e.target.value })}
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Grid>
+
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Thời gian bắt đầu học việc"
+                  type="date"
+                  value={formData.trainingStart}
+                  onChange={(e) => setFormData({ ...formData, trainingStart: e.target.value })}
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Thời gian kết thúc học việc"
+                  type="date"
+                  value={formData.trainingEnd}
+                  onChange={(e) => setFormData({ ...formData, trainingEnd: e.target.value })}
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Grid>
+
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Thời gian bắt đầu thử việc"
+                  type="date"
+                  value={formData.probationStart}
+                  onChange={(e) => setFormData({ ...formData, probationStart: e.target.value })}
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Thời gian kết thúc thử việc"
+                  type="date"
+                  value={formData.probationEnd}
+                  onChange={(e) => setFormData({ ...formData, probationEnd: e.target.value })}
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Grid>
+
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Thời gian bắt đầu chính thức"
+                  type="date"
+                  value={formData.officialStart}
+                  onChange={(e) => setFormData({ ...formData, officialStart: e.target.value })}
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Thời gian kết thúc chính thức"
+                  type="date"
+                  value={formData.officialEnd}
+                  onChange={(e) => setFormData({ ...formData, officialEnd: e.target.value })}
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Grid>
+
+            </Grid>
           </DialogContent>
           <DialogActions>
             <Button onClick={handleClose}>Hủy</Button>

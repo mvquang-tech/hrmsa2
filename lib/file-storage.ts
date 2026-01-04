@@ -20,13 +20,8 @@ function sanitizeFileName(name: string) {
   let base = dotIndex > 0 ? name.slice(0, dotIndex) : name;
   let ext = dotIndex > 0 ? name.slice(dotIndex) : '';
 
-  // Normalize and remove diacritics
-  try {
-    base = base.normalize('NFD').replace(/\p{Diacritic}/gu, '');
-  } catch (e) {
-    // fallback for environments without \p{Diacritic}
-    base = base.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-  }
+  // Normalize and remove diacritics (use NFD + remove combining marks)
+  base = base.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
   // Replace whitespace with underscore
   base = base.replace(/\s+/g, '_');
