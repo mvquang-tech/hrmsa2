@@ -24,6 +24,12 @@ import {
   CircularProgress,
   TextField,
   Stack,
+  Menu,
+  MenuItem,
+  Checkbox,
+  FormControlLabel,
+  InputAdornment,
+  Tooltip,
 } from '@mui/material';
 import Autocomplete from '@mui/material/Autocomplete';
 import EditIcon from '@mui/icons-material/Edit';
@@ -31,6 +37,14 @@ import DownloadIcon from '@mui/icons-material/Download';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import DeleteIcon from '@mui/icons-material/Delete';
+import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
+import ImageIcon from '@mui/icons-material/Image';
+import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile';
+import DescriptionIcon from '@mui/icons-material/Description';
+import TextSnippetIcon from '@mui/icons-material/TextSnippet';
+import FilterListIcon from '@mui/icons-material/FilterList';
+import ViewColumnIcon from '@mui/icons-material/ViewColumn';
+import SearchIcon from '@mui/icons-material/Search';
 
 export default function FilesPage() {
   const { isAuthenticated, token, hasPermission } = useAuth();
@@ -73,6 +87,41 @@ export default function FilesPage() {
   const [pendingUploads, setPendingUploads] = useState<PendingUpload[]>([]);
   const xhrMap = {} as Record<number, XMLHttpRequest | undefined>;
 
+  // Search and filter state
+  const [searchTerm, setSearchTerm] = useState('');
+  const [tagFilter, setTagFilter] = useState<string[]>([]);
+  const [fileTypeFilter, setFileTypeFilter] = useState('');
+
+  // Column visibility
+  const defaultColumns = {
+    description: true,
+    tags: true,
+    fileType: true,
+    notes: true,
+    size: true,
+    creator: true,
+    date: true,
+  } as const;
+  const [columnsVisible, setColumnsVisible] = useState<Record<string, boolean>>(() => {
+    try {
+      const raw = typeof window !== 'undefined' ? localStorage.getItem('files_columns') : null;
+      return raw ? JSON.parse(raw) : defaultColumns;
+    } catch (e) {
+      return defaultColumns;
+    }
+  });
+  const [columnsAnchorEl, setColumnsAnchorEl] = useState<HTMLElement | null>(null);
+  const columnsOpen = Boolean(columnsAnchorEl);
+  const openColumnsMenu = (e: React.MouseEvent<HTMLElement>) => setColumnsAnchorEl(e.currentTarget);
+  const closeColumnsMenu = () => setColumnsAnchorEl(null);
+  const toggleColumn = (key: string) => {
+    setColumnsVisible(prev => {
+      const next = { ...prev, [key]: !prev[key] };
+      try { localStorage.setItem('files_columns', JSON.stringify(next)); } catch (e) {}
+      return next;
+    });
+  };
+
   const loadTagOptions = async () => {
     try {
       const res = await fetch('/api/files/tags');
@@ -82,6 +131,35 @@ export default function FilesPage() {
       console.error('Failed to load tag options', e);
     }
   };
+
+  // File icon helper
+  const getIconForFilename = (name: string) => {
+    const ext = (name || '').split('.').pop()?.toLowerCase() || '';
+    if (['pdf'].includes(ext)) return <PictureAsPdfIcon color="error" />;
+    if (['jpg','jpeg','png','gif','bmp','webp'].includes(ext)) return <ImageIcon color="primary" />;
+    if (['doc','docx','odt'].includes(ext)) return <DescriptionIcon color="primary" />;
+    if (['txt','md','csv','log'].includes(ext)) return <TextSnippetIcon color="action" />;
+    if (['xls','xlsx','csv'].includes(ext)) return <InsertDriveFileIcon color="success" />;
+    return <InsertDriveFileIcon />;
+  };
+
+  // Filtered files (client-side)
+  const filteredFiles = files.filter((f) => {
+    if (searchTerm) {
+      const s = searchTerm.toLowerCase();
+      const matches = (f.originalName || '').toLowerCase().includes(s) || (f.description || '').toLowerCase().includes(s) || (f.notes || '').toLowerCase().includes(s);
+      if (!matches) return false;
+    }
+    if (tagFilter && tagFilter.length > 0) {
+      const tags = Array.isArray(f.tags) ? f.tags.map((t: string) => t.toLowerCase()) : [];
+      const ok = tagFilter.every(t => tags.includes(t.toLowerCase()));
+      if (!ok) return false;
+    }
+    if (fileTypeFilter) {
+      if (!((f.fileType || '').toLowerCase().includes(fileTypeFilter.toLowerCase()))) return false;
+    }
+    return true;
+  });
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -333,7 +411,56 @@ export default function FilesPage() {
   return (
     <Layout>
       <Box sx={{ p: 3 }}>
-        <Typography variant="h4" sx={{ mb: 2 }}>File Lưu trữ</Typography>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 2, mb: 2 }}>
+          <Typography variant="h4">File Lưu trữ</Typography>
+          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+            <TextField
+              size="small"
+              placeholder="Tìm theo tên, mô tả, ghi chú..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              InputProps={{ startAdornment: (<InputAdornment position="start"><SearchIcon /></InputAdornment>) }}
+            />
+            <Autocomplete
+              multiple
+              size="small"
+              options={tagOptions}
+              value={tagFilter}
+              onChange={(e, v) => setTagFilter(v as string[])}
+              renderInput={(params) => <TextField {...params} placeholder="Lọc theo tag" />}
+              sx={{ width: 220 }}
+            />
+            <TextField size="small" placeholder="Lọc theo loại" value={fileTypeFilter} onChange={(e) => setFileTypeFilter(e.target.value)} />
+            <Tooltip title="Columns">
+              <IconButton size="small" onClick={openColumnsMenu}>
+                <ViewColumnIcon />
+              </IconButton>
+            </Tooltip>
+            <Menu anchorEl={columnsAnchorEl} open={columnsOpen} onClose={closeColumnsMenu}>
+              <MenuItem>
+                <FormControlLabel control={<Checkbox checked={!!columnsVisible.description} onChange={() => toggleColumn('description')} />} label="Mô tả" />
+              </MenuItem>
+              <MenuItem>
+                <FormControlLabel control={<Checkbox checked={!!columnsVisible.tags} onChange={() => toggleColumn('tags')} />} label="Tags" />
+              </MenuItem>
+              <MenuItem>
+                <FormControlLabel control={<Checkbox checked={!!columnsVisible.fileType} onChange={() => toggleColumn('fileType')} />} label="Loại" />
+              </MenuItem>
+              <MenuItem>
+                <FormControlLabel control={<Checkbox checked={!!columnsVisible.notes} onChange={() => toggleColumn('notes')} />} label="Ghi chú" />
+              </MenuItem>
+              <MenuItem>
+                <FormControlLabel control={<Checkbox checked={!!columnsVisible.size} onChange={() => toggleColumn('size')} />} label="Kích thước" />
+              </MenuItem>
+              <MenuItem>
+                <FormControlLabel control={<Checkbox checked={!!columnsVisible.creator} onChange={() => toggleColumn('creator')} />} label="Người tạo" />
+              </MenuItem>
+              <MenuItem>
+                <FormControlLabel control={<Checkbox checked={!!columnsVisible.date} onChange={() => toggleColumn('date')} />} label="Ngày tạo" />
+              </MenuItem>
+            </Menu>
+          </Box>
+        </Box>
 
         <Paper
           onDrop={onDrop}
@@ -392,53 +519,59 @@ export default function FilesPage() {
             <TableHead>
               <TableRow>
                 <TableCell>Tên file</TableCell>
-                <TableCell>Mô tả</TableCell>
-                <TableCell>Tags</TableCell>
-                <TableCell>Loại</TableCell>
-                <TableCell>Ghi chú</TableCell>
-                <TableCell>Kích thước</TableCell>
-                <TableCell>Người tạo</TableCell>
-                <TableCell>Ngày tạo</TableCell>
+                {columnsVisible.description && <TableCell>Mô tả</TableCell>}
+                {columnsVisible.tags && <TableCell>Tags</TableCell>}
+                {columnsVisible.fileType && <TableCell>Loại</TableCell>}
+                {columnsVisible.notes && <TableCell>Ghi chú</TableCell>}
+                {columnsVisible.size && <TableCell>Kích thước</TableCell>}
+                {columnsVisible.creator && <TableCell>Người tạo</TableCell>}
+                {columnsVisible.date && <TableCell>Ngày tạo</TableCell>}
                 <TableCell align="right">Thao tác</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
-              {files.map((f) => (
+              {filteredFiles.map((f) => (
                 <TableRow key={f.id}>
-                  <TableCell>{f.originalName}</TableCell>
-                <TableCell sx={{ maxWidth: 240, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.description || ''}</TableCell>
-                <TableCell>
-                  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                    {(Array.isArray(f.tags) ? f.tags : []).map((t: string) => (
-                      <Chip key={t} label={t} size="small" />
-                    ))}
-                  </Box>
-                </TableCell>
-                <TableCell>{f.fileType || ''}</TableCell>
-                <TableCell sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.notes || ''}</TableCell>
-                <TableCell>{formatSize(f.size)}</TableCell>
-                <TableCell>{f.createdByName || f.createdBy}</TableCell>
-                <TableCell>{new Date(f.createdAt).toLocaleString()}</TableCell>
-                <TableCell align="right">
-                  <IconButton onClick={() => openPreview(f.id)} size="small">
-                    <VisibilityIcon />
-                  </IconButton>
-                  {hasPermission('files.download') && (
-                    <IconButton onClick={() => download(f.id)} size="small">
-                      <DownloadIcon />
+                  <TableCell sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    {getIconForFilename(f.originalName)}
+                    <Box>
+                      <Typography sx={{ fontWeight: 600 }}>{f.originalName}</Typography>
+                      <Typography variant="caption" sx={{ color: 'text.secondary' }}>{(f.filename || '').split('.').pop()?.toUpperCase() || ''}</Typography>
+                    </Box>
+                  </TableCell>
+                  {columnsVisible.description && <TableCell sx={{ maxWidth: 240, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.description || ''}</TableCell>}
+                  {columnsVisible.tags && <TableCell>
+                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                      {(Array.isArray(f.tags) ? f.tags : []).map((t: string) => (
+                        <Chip key={t} label={t} size="small" />
+                      ))}
+                    </Box>
+                  </TableCell>}
+                  {columnsVisible.fileType && <TableCell>{f.fileType || ''}</TableCell>}
+                  {columnsVisible.notes && <TableCell sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.notes || ''}</TableCell>}
+                  {columnsVisible.size && <TableCell>{formatSize(f.size)}</TableCell>}
+                  {columnsVisible.creator && <TableCell>{f.createdByName || f.createdBy}</TableCell>}
+                  {columnsVisible.date && <TableCell>{new Date(f.createdAt).toLocaleString()}</TableCell>}
+                  <TableCell align="right">
+                    <IconButton onClick={() => openPreview(f.id)} size="small">
+                      <VisibilityIcon />
                     </IconButton>
-                  )}
-                  {hasPermission('files.update') && (
-                    <IconButton onClick={() => openEdit(f)} size="small">
-                      <EditIcon />
-                    </IconButton>
-                  )}
-                  {hasPermission('files.delete') && (
-                    <IconButton onClick={() => setConfirmDelete({ id: f.id, name: f.originalName })} size="small" color="error">
-                      <DeleteIcon />
-                    </IconButton>
-                  )}
-                </TableCell>
+                    {hasPermission('files.download') && (
+                      <IconButton onClick={() => download(f.id)} size="small">
+                        <DownloadIcon />
+                      </IconButton>
+                    )}
+                    {hasPermission('files.update') && (
+                      <IconButton onClick={() => openEdit(f)} size="small">
+                        <EditIcon />
+                      </IconButton>
+                    )}
+                    {hasPermission('files.delete') && (
+                      <IconButton onClick={() => setConfirmDelete({ id: f.id, name: f.originalName })} size="small" color="error">
+                        <DeleteIcon />
+                      </IconButton>
+                    )}
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
