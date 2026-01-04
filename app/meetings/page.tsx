@@ -51,11 +51,13 @@ import {
   Settings as SettingsIcon,
   Today as TodayIcon,
   CalendarMonth as CalendarIcon,
+  CalendarMonth as CalendarMonthIcon,
   Telegram as TelegramIcon,
   Refresh as RefreshIcon,
 } from '@mui/icons-material';
 import Layout from '@/components/Layout';
 import MeetingDetailDialog from './MeetingDetailDialog';
+import MeetingCalendar from './MeetingCalendar';
 import { useAuth } from '@/hooks/useAuth';
 
 interface Meeting {
@@ -133,6 +135,12 @@ export default function MeetingsPage() {
   // View dialog (read/unread)
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [viewingMeeting, setViewingMeeting] = useState<Meeting | null>(null);
+
+  // Calendar state
+  const [currentMonth, setCurrentMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
+  const [dayDialogOpen, setDayDialogOpen] = useState(false);
+  const [selectedDay, setSelectedDay] = useState<string | null>(null);
+  const [selectedDayMeetings, setSelectedDayMeetings] = useState<Meeting[]>([]);
 
   // Tab state
   const [tabValue, setTabValue] = useState(0);
@@ -761,6 +769,7 @@ export default function MeetingsPage() {
           <Tabs value={tabValue} onChange={(_, v) => setTabValue(v)}>
             <Tab icon={<CalendarIcon />} label="Tất cả" iconPosition="start" />
             <Tab icon={<TodayIcon />} label={`Hôm nay (${todayMeetings.length})`} iconPosition="start" />
+            <Tab icon={<CalendarMonthIcon />} label="Lịch" iconPosition="start" />
             <Tab icon={<SettingsIcon />} label="Cài đặt Telegram" iconPosition="start" />
           </Tabs>
         </Paper>
@@ -769,7 +778,28 @@ export default function MeetingsPage() {
         <Paper>
           {tabValue === 0 && renderMeetingTable(meetings)}
           {tabValue === 1 && renderMeetingTable(todayMeetings)}
-          {tabValue === 2 && renderTelegramConfig()}
+          {tabValue === 2 && (
+            <MeetingCalendar
+              monthDate={currentMonth}
+              onPrevMonth={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1))}
+              onNextMonth={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1))}
+              onToday={() => setCurrentMonth(new Date(new Date().getFullYear(), new Date().getMonth(), 1))}
+              onDayClick={(date: string) => {
+                const list = meetings.filter(m => m.date === date);
+                setSelectedDay(date);
+                setSelectedDayMeetings(list);
+                setDayDialogOpen(true);
+              }}
+              onCreateDay={(date: string) => {
+                // Open create dialog prefilled with the clicked date and default time
+                setIsEdit(false);
+                setSelectedMeeting({ ...defaultMeeting, date, time: '09:00' });
+                setDialogOpen(true);
+              }}
+              meetings={meetings.map(m => ({ id: m.id, title: m.title, date: m.date, time: m.time, isRead: m.isRead }))}
+            />
+          )}
+          {tabValue === 3 && renderTelegramConfig()}
         </Paper>
         </Container>
 
@@ -835,6 +865,26 @@ export default function MeetingsPage() {
             URL.revokeObjectURL(url);
           }}
         />
+
+        {/* Day meetings dialog */}
+        <Dialog open={dayDialogOpen} onClose={() => setDayDialogOpen(false)} fullWidth maxWidth="sm">
+          <DialogTitle>Cuộc họp ngày {selectedDay}</DialogTitle>
+          <DialogContent>
+            {selectedDayMeetings.length === 0 ? (
+              <Typography color="text.secondary">Không có cuộc họp</Typography>
+            ) : (
+              selectedDayMeetings.map(m => (
+                <Box key={m.id} sx={{ py: 1, borderBottom: '1px solid', borderColor: 'divider', cursor: 'pointer' }} onClick={() => { setDayDialogOpen(false); handleViewMeeting(m); }}>
+                  <Typography fontWeight={700} sx={{ color: m.isRead ? 'text.secondary' : 'text.primary' }}>{m.time} • {m.title}</Typography>
+                  <Typography variant="caption" color="text.secondary">{m.attendees || ''}</Typography>
+                </Box>
+              ))
+            )}
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setDayDialogOpen(false)}>Đóng</Button>
+          </DialogActions>
+        </Dialog>
 
         {/* Meeting Dialog */}
         <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
