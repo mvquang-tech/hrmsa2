@@ -238,8 +238,53 @@ export default function FilesPage() {
     setPreviewUrl(url);
   };
 
-  const download = (id: number) => {
-    window.open(`/api/files/${id}/download`, '_blank');
+  const download = async (id: number) => {
+    // Use fetch with Authorization header so downloads work when using JWT bearer tokens
+    try {
+      const headers: Record<string, string> = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const resp = await fetch(`/api/files/${id}/download`, { headers, method: 'GET', credentials: 'same-origin', cache: 'no-store' });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => null);
+        alert(err?.error || 'Không thể tải file');
+        return;
+      }
+
+      const blob = await resp.blob();
+
+      // Try to get filename from Content-Disposition header
+      const cd = resp.headers.get('content-disposition') || '';
+      let filename = '';
+      const m = /filename="?([^";]+)"?/.exec(cd);
+      if (m && m[1]) filename = m[1];
+      // fallback: find filename from files list
+      if (!filename) {
+        const f = files.find(x => x.id === id);
+        filename = f?.originalName || `file-${id}`;
+      }
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      console.error('Download error', err);
+      if (!navigator.onLine) {
+        alert('Không có kết nối mạng. Vui lòng kiểm tra kết nối.');
+      } else {
+        const fallback = token ? confirm('Tải thất bại. Mở link tải trực tiếp trong tab mới?') : false;
+        if (fallback && token) {
+          window.open(`/api/files/${id}/download?token=${encodeURIComponent(token)}`, '_blank');
+        } else {
+          alert(err?.message || 'Lỗi tải file (Failed to fetch). Mở console để xem chi tiết.');
+        }
+      }
+    }
   };
 
   const openEdit = (file: any) => {
@@ -378,9 +423,11 @@ export default function FilesPage() {
                   <IconButton onClick={() => openPreview(f.id)} size="small">
                     <VisibilityIcon />
                   </IconButton>
-                  <IconButton onClick={() => download(f.id)} size="small">
-                    <DownloadIcon />
-                  </IconButton>
+                  {hasPermission('files.download') && (
+                    <IconButton onClick={() => download(f.id)} size="small">
+                      <DownloadIcon />
+                    </IconButton>
+                  )}
                   {hasPermission('files.update') && (
                     <IconButton onClick={() => openEdit(f)} size="small">
                       <EditIcon />
