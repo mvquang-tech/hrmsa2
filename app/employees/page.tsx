@@ -920,14 +920,6 @@ export default function EmployeesPage() {
                   InputLabelProps={{ shrink: true }}
                 />
               </Grid>
-              <Grid item xs={12} sm={8}>
-                <TextField
-                  fullWidth
-                  label="Nơi đào tạo"
-                  value={formData.placeOfTraining}
-                  onChange={(e) => setFormData({ ...formData, placeOfTraining: e.target.value })}
-                />
-              </Grid>
 
               {/* Contact & ID */}
               <Grid item xs={12}>
@@ -1078,6 +1070,15 @@ export default function EmployeesPage() {
                   <MenuItem value="inactive">Không hoạt động</MenuItem>
                   <MenuItem value="terminated">Đã nghỉ việc</MenuItem>
                 </TextField>
+              </Grid>
+
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Nơi đào tạo"
+                  value={formData.placeOfTraining}
+                  onChange={(e) => setFormData({ ...formData, placeOfTraining: e.target.value })}
+                />
               </Grid>
 
               {/* Employment Periods */}
