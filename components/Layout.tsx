@@ -27,6 +27,7 @@ import LogoutIcon from '@mui/icons-material/Logout';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import SettingsIcon from '@mui/icons-material/Settings';
 import TelegramIcon from '@mui/icons-material/Telegram';
+import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile';
 import SecurityIcon from '@mui/icons-material/Security';
 import GroupIcon from '@mui/icons-material/Group';
 import ExpandLess from '@mui/icons-material/ExpandLess';
@@ -44,6 +45,7 @@ const menuItems = [
   { text: 'Ngoài giờ', icon: <AccessTimeIcon />, path: '/overtime', permission: 'overtime.view' },
   { text: 'Nghỉ phép', icon: <EventIcon />, path: '/leaves', permission: 'leaves.view' },
   { text: 'Lịch họp', icon: <CalendarMonthIcon />, path: '/meetings', permission: 'meetings.view' },
+  { text: 'File Lưu trữ', icon: <InsertDriveFileIcon />, path: '/files', permission: 'files.view' },
 ];
 
 const adminMenuItems = [
@@ -69,7 +71,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
   // Settings menu items
   const settingsItems = [
     { text: 'Telegram', icon: <TelegramIcon />, path: '/settings/telegram', permission: 'telegram.view' },
-    { text: 'File Lưu trữ', icon: <PeopleIcon />, path: '/files', permission: 'files.view' },
   ];
   const visibleSettingsItems = settingsItems.filter(item => hasPermission(item.permission));
 
