@@ -29,6 +29,7 @@ import {
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
+import InfoIcon from '@mui/icons-material/Info';
 import { UserRole } from '@/lib/types';
 
 interface Employee {
@@ -68,6 +69,11 @@ export default function OvertimePage() {
   const [calcTotals, setCalcTotals] = useState({ perDay: new Map<string, number>(), grandSeconds: 0 });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Detail view state
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [detailOvertime, setDetailOvertime] = useState<Overtime | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
 
   // Helper to format seconds into hours string
   const formatSeconds = (seconds: number) => {
@@ -256,7 +262,7 @@ export default function OvertimePage() {
           payload.reason = formData.reason;
         } else {
           payload.date = formData.date;
-          payload.hours = parseFloat(formData.hours);
+          payload.hours = parseFloat(formData.hours || '0');
           payload.reason = formData.reason;
         }
 
@@ -344,6 +350,27 @@ export default function OvertimePage() {
       }
     } catch (err) {
       alert('Có lỗi xảy ra');
+    }
+  };
+
+  const handleView = async (ot: Overtime) => {
+    setDetailLoading(true);
+    setDetailOvertime(null);
+    try {
+      const response = await fetch(`/api/overtime/${ot.id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await response.json();
+      if (data.success) {
+        setDetailOvertime(data.data);
+        setDetailOpen(true);
+      } else {
+        setError(data.error || 'Không thể tải chi tiết');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Có lỗi khi tải chi tiết');
+    } finally {
+      setDetailLoading(false);
     }
   };
 
@@ -442,6 +469,12 @@ export default function OvertimePage() {
                       />
                     </TableCell>
                     <TableCell align="right">
+                      <Tooltip title="Xem chi tiết">
+                        <IconButton size="small" onClick={() => handleView(ot)} aria-label="Xem chi tiết">
+                          <InfoIcon />
+                        </IconButton>
+                      </Tooltip>
+
                       {canEditItem(ot) && (
                         <IconButton size="small" onClick={() => handleOpen(ot)}>
                           <EditIcon />
@@ -628,6 +661,48 @@ export default function OvertimePage() {
             <Button onClick={handleSubmit} variant="contained" disabled={loading}>
               {loading ? 'Đang lưu...' : 'Lưu'}
             </Button>
+          </DialogActions>
+        </Dialog>
+
+        <Dialog open={detailOpen} onClose={() => { setDetailOpen(false); setDetailOvertime(null); }} maxWidth="sm" fullWidth>
+          <DialogTitle>Chi tiết đơn ngoài giờ</DialogTitle>
+          <DialogContent dividers>
+            {detailLoading && <Typography>Đang tải...</Typography>}
+            {!detailLoading && detailOvertime && (
+              <Box>
+                <Typography variant="subtitle1" sx={{ mb: 1 }}>Nhân viên: {(() => {
+                  const emp = employees.find((e) => e.id === detailOvertime.employeeId);
+                  return emp ? `${emp.firstName} ${emp.lastName}` : `ID: ${detailOvertime.employeeId}`;
+                })()}</Typography>
+                <Chip label={getStatusLabel(detailOvertime.status)} color={getStatusColor(detailOvertime.status) as any} size="small" />
+                <Typography variant="body2" sx={{ mt: 2, mb: 1 }}><strong>Lý do:</strong> {detailOvertime.reason}</Typography>
+
+                {detailOvertime.days && detailOvertime.days.length > 0 ? (
+                  <>
+                    <Typography variant="subtitle2">Danh sách ngày</Typography>
+                    {detailOvertime.days.map((d: any) => {
+                      const slots = Array.isArray(d.slots) ? d.slots : [];
+                      return (
+                        <Paper key={d.date} sx={{ p: 1, mb: 1 }} elevation={1}>
+                          <Typography variant="body2"><strong>{new Date(d.date).toLocaleDateString('vi-VN')}</strong></Typography>
+                          {slots.length > 0 ? slots.map((s: any, idx: number) => (
+                            <Typography key={idx} variant="body2">• { String(s.start_time).slice(0,5) } - { String(s.end_time).slice(0,5) }</Typography>
+                          )) : <Typography variant="body2">Không có thời điểm</Typography>}
+                        </Paper>
+                      );
+                    })}
+                  </>
+                ) : (
+                  <>
+                    <Typography variant="body2"><strong>Ngày:</strong> {detailOvertime.date ? new Date(detailOvertime.date).toLocaleDateString('vi-VN') : '-'}</Typography>
+                    <Typography variant="body2"><strong>Số giờ:</strong> {typeof detailOvertime.total_hours !== 'undefined' ? detailOvertime.total_hours : detailOvertime.hours}</Typography>
+                  </>
+                )}
+              </Box>
+            )}
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => { setDetailOpen(false); setDetailOvertime(null); }}>Đóng</Button>
           </DialogActions>
         </Dialog>
       </Box>

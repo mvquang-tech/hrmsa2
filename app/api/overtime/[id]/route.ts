@@ -93,20 +93,34 @@ export async function PUT(
         for (const day of body.days) {
           let daySum = 0;
           for (const slot of day.slots) {
-            const [sh, sm] = slot.start.split(':').map((v: string) => parseInt(v, 10));
-            const [eh, em] = slot.end.split(':').map((v: string) => parseInt(v, 10));
-            const startSec = sh * 3600 + sm * 60;
-            const endSec = eh * 3600 + em * 60;
+            const sp = slot.start.split(':').map((v: string) => parseInt(v, 10));
+            const ep = slot.end.split(':').map((v: string) => parseInt(v, 10));
+            const sh = sp[0] || 0;
+            const sm = sp[1] || 0;
+            const ss = sp[2] || 0;
+            const eh = ep[0] || 0;
+            const em = ep[1] || 0;
+            const es = ep[2] || 0;
+            const startSec = sh * 3600 + sm * 60 + ss;
+            const endSec = eh * 3600 + em * 60 + es;
             if (endSec <= startSec) return createErrorResponse('Thời điểm kết thúc phải sau thời điểm bắt đầu', 400);
             daySum += endSec - startSec;
           }
           const dayRes = await query('INSERT INTO overtime_days (overtimeId, date, total_seconds) VALUES (?, ?, ?)', [id, formatDate(day.date)!, daySum]) as any;
           const dayId = dayRes.insertId;
           for (const slot of day.slots) {
-            const [sh, sm] = slot.start.split(':').map((v: string) => parseInt(v, 10));
-            const [eh, em] = slot.end.split(':').map((v: string) => parseInt(v, 10));
-            const seconds = (eh * 3600 + em * 60) - (sh * 3600 + sm * 60);
-            await query('INSERT INTO overtime_slots (dayId, start_time, end_time, seconds) VALUES (?, ?, ?, ?)', [dayId, slot.start + ':00', slot.end + ':00', seconds]);
+            const sp = slot.start.split(':').map((v: string) => parseInt(v, 10));
+            const ep = slot.end.split(':').map((v: string) => parseInt(v, 10));
+            const sh = sp[0] || 0;
+            const sm = sp[1] || 0;
+            const ss = sp[2] || 0;
+            const eh = ep[0] || 0;
+            const em = ep[1] || 0;
+            const es = ep[2] || 0;
+            const seconds = (eh * 3600 + em * 60 + es) - (sh * 3600 + sm * 60 + ss);
+            const startTime = slot.start.length === 5 ? slot.start + ':00' : slot.start;
+            const endTime = slot.end.length === 5 ? slot.end + ':00' : slot.end;
+            await query('INSERT INTO overtime_slots (dayId, start_time, end_time, seconds) VALUES (?, ?, ?, ?)', [dayId, startTime, endTime, seconds]);
           }
           grand += daySum;
         }
@@ -141,20 +155,34 @@ export async function PUT(
         for (const day of body.days) {
           let daySum = 0;
           for (const slot of day.slots) {
-            const [sh, sm] = slot.start.split(':').map((v: string) => parseInt(v, 10));
-            const [eh, em] = slot.end.split(':').map((v: string) => parseInt(v, 10));
-            const startSec = sh * 3600 + sm * 60;
-            const endSec = eh * 3600 + em * 60;
+            const sp = slot.start.split(':').map((v: string) => parseInt(v, 10));
+            const ep = slot.end.split(':').map((v: string) => parseInt(v, 10));
+            const sh = sp[0] || 0;
+            const sm = sp[1] || 0;
+            const ss = sp[2] || 0;
+            const eh = ep[0] || 0;
+            const em = ep[1] || 0;
+            const es = ep[2] || 0;
+            const startSec = sh * 3600 + sm * 60 + ss;
+            const endSec = eh * 3600 + em * 60 + es;
             if (endSec <= startSec) return createErrorResponse('Thời điểm kết thúc phải sau thời điểm bắt đầu', 400);
             daySum += endSec - startSec;
           }
           const dayRes = await query('INSERT INTO overtime_days (overtimeId, date, total_seconds) VALUES (?, ?, ?)', [id, formatDate(day.date)!, daySum]) as any;
           const dayId = dayRes.insertId;
           for (const slot of day.slots) {
-            const [sh, sm] = slot.start.split(':').map((v: string) => parseInt(v, 10));
-            const [eh, em] = slot.end.split(':').map((v: string) => parseInt(v, 10));
-            const seconds = (eh * 3600 + em * 60) - (sh * 3600 + sm * 60);
-            await query('INSERT INTO overtime_slots (dayId, start_time, end_time, seconds) VALUES (?, ?, ?, ?)', [dayId, slot.start + ':00', slot.end + ':00', seconds]);
+            const sp = slot.start.split(':').map((v: string) => parseInt(v, 10));
+            const ep = slot.end.split(':').map((v: string) => parseInt(v, 10));
+            const sh = sp[0] || 0;
+            const sm = sp[1] || 0;
+            const ss = sp[2] || 0;
+            const eh = ep[0] || 0;
+            const em = ep[1] || 0;
+            const es = ep[2] || 0;
+            const seconds = (eh * 3600 + em * 60 + es) - (sh * 3600 + sm * 60 + ss);
+            const startTime = slot.start.length === 5 ? slot.start + ':00' : slot.start;
+            const endTime = slot.end.length === 5 ? slot.end + ':00' : slot.end;
+            await query('INSERT INTO overtime_slots (dayId, start_time, end_time, seconds) VALUES (?, ?, ?, ?)', [dayId, startTime, endTime, seconds]);
           }
           grand += daySum;
         }

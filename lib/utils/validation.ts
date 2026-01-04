@@ -68,8 +68,8 @@ export const overtimeBatchSchema = z.object({
   days: z.array(z.object({
     date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format'),
     slots: z.array(z.object({
-      start: z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/, 'Thời gian bắt đầu không hợp lệ'),
-      end: z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/, 'Thời gian kết thúc không hợp lệ'),
+      start: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Thời gian bắt đầu không hợp lệ (HH:MM, 24h)'),
+      end: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Thời gian kết thúc không hợp lệ (HH:MM, 24h)'),
     })).min(1).max(4),
   })).min(1),
 });

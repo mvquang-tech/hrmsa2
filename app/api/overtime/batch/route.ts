@@ -69,9 +69,11 @@ export async function POST(request: NextRequest) {
         const start = parseTimeToDate(day.date, slot.start);
         const end = parseTimeToDate(day.date, slot.end);
         const seconds = Math.floor((end.getTime() - start.getTime()) / 1000);
+        const startTime = slot.start.length === 5 ? slot.start + ':00' : slot.start;
+        const endTime = slot.end.length === 5 ? slot.end + ':00' : slot.end;
         await query(
           'INSERT INTO overtime_slots (dayId, start_time, end_time, seconds) VALUES (?, ?, ?, ?)',
-          [dayId, slot.start + ':00', slot.end.length === 5 ? slot.end + ':00' : slot.end, seconds]
+          [dayId, startTime, endTime, seconds]
         );
       }
     }
