@@ -25,6 +25,7 @@ import {
   TextField,
   Stack,
 } from '@mui/material';
+import Autocomplete from '@mui/material/Autocomplete';
 import EditIcon from '@mui/icons-material/Edit';
 import DownloadIcon from '@mui/icons-material/Download';
 import VisibilityIcon from '@mui/icons-material/Visibility';
@@ -45,7 +46,16 @@ export default function FilesPage() {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingFile, setEditingFile] = useState<any | null>(null);
   const [editDescription, setEditDescription] = useState('');
-  const [editTagsText, setEditTagsText] = useState('');
+  const [editTags, setEditTags] = useState<string[]>([]);
+  const [editTagsInput, setEditTagsInput] = useState('');
+  const [tagOptions, setTagOptions] = useState<string[]>([]);
+
+  const addTagFromInput = (value?: string) => {
+    const v = (value !== undefined ? value : editTagsInput || '').trim();
+    if (!v) return;
+    setEditTags(prev => (prev.includes(v) ? prev : [...prev, v]));
+    setEditTagsInput('');
+  };
   const [editFileType, setEditFileType] = useState('');
   const [editNotes, setEditNotes] = useState('');
   const [savingEdit, setSavingEdit] = useState(false);
@@ -63,9 +73,21 @@ export default function FilesPage() {
   const [pendingUploads, setPendingUploads] = useState<PendingUpload[]>([]);
   const xhrMap = {} as Record<number, XMLHttpRequest | undefined>;
 
+  const loadTagOptions = async () => {
+    try {
+      const res = await fetch('/api/files/tags');
+      const d = await res.json();
+      if (d.success) setTagOptions(d.data || []);
+    } catch (e) {
+      console.error('Failed to load tag options', e);
+    }
+  };
+
   useEffect(() => {
     if (!isAuthenticated) return;
     fetchFiles();
+    loadTagOptions();
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated]);
 
@@ -175,6 +197,14 @@ export default function FilesPage() {
     }
   };
 
+  function formatSize(bytes: number | null | undefined) {
+    if (!bytes && bytes !== 0) return '';
+    const b = Number(bytes);
+    if (b >= 1024 * 1024) return (b / (1024 * 1024)).toFixed(2) + ' MB';
+    if (b >= 1024) return (b / 1024).toFixed(1) + ' KB';
+    return b + ' B';
+  }
+
   const uploadAll = () => {
     if (!hasPermission('files.upload')) {
       alert('Bạn không có quyền tải lên');
@@ -215,7 +245,7 @@ export default function FilesPage() {
   const openEdit = (file: any) => {
     setEditingFile(file);
     setEditDescription(file.description || '');
-    setEditTagsText(Array.isArray(file.tags) ? file.tags.join(', ') : (typeof file.tags === 'string' ? file.tags : ''));
+    setEditTags(Array.isArray(file.tags) ? file.tags : (typeof file.tags === 'string' ? [file.tags] : []));
     setEditFileType(file.fileType || '');
     setEditNotes(file.notes || '');
     setEditDialogOpen(true);
@@ -227,7 +257,7 @@ export default function FilesPage() {
     try {
       const body = {
         description: editDescription,
-        tags: editTagsText.split(',').map((s) => s.trim()).filter(Boolean),
+        tags: editTags,
         fileType: editFileType,
         notes: editNotes,
       } as any;
@@ -243,7 +273,9 @@ export default function FilesPage() {
       if (!data.success) throw new Error(data.error || 'Lỗi cập nhật');
       setEditDialogOpen(false);
       setEditingFile(null);
-      fetchFiles();
+      await fetchFiles();
+      // refresh tag options to include newly added tags
+      await loadTagOptions();
     } catch (err: any) {
       alert(err.message || 'Lỗi cập nhật');
     } finally {
@@ -319,7 +351,6 @@ export default function FilesPage() {
                 <TableCell>Tags</TableCell>
                 <TableCell>Loại</TableCell>
                 <TableCell>Ghi chú</TableCell>
-                <TableCell>Loại MIME</TableCell>
                 <TableCell>Kích thước</TableCell>
                 <TableCell>Người tạo</TableCell>
                 <TableCell>Ngày tạo</TableCell>
@@ -330,13 +361,18 @@ export default function FilesPage() {
               {files.map((f) => (
                 <TableRow key={f.id}>
                   <TableCell>{f.originalName}</TableCell>
-                <TableCell>{f.description || ''}</TableCell>
-                <TableCell>{Array.isArray(f.tags) ? f.tags.join(', ') : (f.tags || '')}</TableCell>
+                <TableCell sx={{ maxWidth: 240, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.description || ''}</TableCell>
+                <TableCell>
+                  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                    {(Array.isArray(f.tags) ? f.tags : []).map((t: string) => (
+                      <Chip key={t} label={t} size="small" />
+                    ))}
+                  </Box>
+                </TableCell>
                 <TableCell>{f.fileType || ''}</TableCell>
-                <TableCell>{f.notes || ''}</TableCell>
-                <TableCell>{f.mimeType}</TableCell>
-                <TableCell>{f.size}</TableCell>
-                <TableCell>{f.createdBy}</TableCell>
+                <TableCell sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.notes || ''}</TableCell>
+                <TableCell>{formatSize(f.size)}</TableCell>
+                <TableCell>{f.createdByName || f.createdBy}</TableCell>
                 <TableCell>{new Date(f.createdAt).toLocaleString()}</TableCell>
                 <TableCell align="right">
                   <IconButton onClick={() => openPreview(f.id)} size="small">
@@ -384,7 +420,40 @@ export default function FilesPage() {
           <DialogContent>
             <Stack spacing={2} sx={{ mt: 1 }}>
               <TextField label="Mô tả" value={editDescription} onChange={(e) => setEditDescription(e.target.value)} multiline rows={3} fullWidth />
-              <TextField label="Tags (phân tách bằng dấu phẩy)" value={editTagsText} onChange={(e) => setEditTagsText(e.target.value)} fullWidth />
+              <Autocomplete
+                multiple
+                freeSolo
+                filterSelectedOptions
+                options={tagOptions}
+                value={editTags}
+                inputValue={editTagsInput}
+                onInputChange={(e, v) => setEditTagsInput(v)}
+                onChange={(e, v) => setEditTags(v as string[])}
+                renderTags={(value: string[], getTagProps) =>
+                  value.map((option, index) => {
+                    const tagProps = getTagProps({ index });
+                    const { key: _k, ...rest } = tagProps as any;
+                    return (
+                      <Chip key={option} variant="outlined" size="small" label={option} {...rest} />
+                    );
+                  })
+                }
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Tags"
+                    placeholder="Thêm tag"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ',') {
+                        e.preventDefault();
+                        const val = (params.inputProps?.value as string) || '';
+                        const v = val.trim().replace(/,$/, '');
+                        if (v) addTagFromInput(v);
+                      }
+                    }}
+                  />
+                )}
+              />
               <TextField label="Loại" value={editFileType} onChange={(e) => setEditFileType(e.target.value)} fullWidth />
               <TextField label="Ghi chú" value={editNotes} onChange={(e) => setEditNotes(e.target.value)} multiline rows={3} fullWidth />
             </Stack>

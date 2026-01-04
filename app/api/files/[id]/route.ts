@@ -10,7 +10,13 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     if (auth instanceof NextResponse) return auth;
 
     const id = parseInt(params.id);
-    const rows = await query('SELECT * FROM files WHERE id = ?', [id]);
+    const rows = await query(`
+      SELECT f.*, u.username as createdByUsername, CONCAT(e.firstName, ' ', e.lastName) as createdByName
+      FROM files f
+      LEFT JOIN users u ON f.createdBy = u.id
+      LEFT JOIN employees e ON u.employeeId = e.id
+      WHERE f.id = ?
+    `, [id]);
     if (!Array.isArray(rows) || rows.length === 0) return NextResponse.json({ success: false, error: 'Không tìm thấy file' }, { status: 404 });
 
     const row = rows[0];
@@ -19,6 +25,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     } catch (e) {
       row.tags = [];
     }
+    row.createdByName = row.createdByName || row.createdByUsername || (row.createdBy ? String(row.createdBy) : null);
 
     return NextResponse.json({ success: true, data: row });
   } catch (err: any) {

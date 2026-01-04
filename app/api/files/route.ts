@@ -25,17 +25,25 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(url.searchParams.get('limit') || '20');
     const offset = (page - 1) * limit;
 
-    const rows = await query('SELECT SQL_CALC_FOUND_ROWS * FROM files ORDER BY createdAt DESC LIMIT ? OFFSET ?', [limit, offset]);
+    const rows = await query(`
+      SELECT SQL_CALC_FOUND_ROWS f.*, u.username as createdByUsername, CONCAT(e.firstName, ' ', e.lastName) as createdByName
+      FROM files f
+      LEFT JOIN users u ON f.createdBy = u.id
+      LEFT JOIN employees e ON u.employeeId = e.id
+      ORDER BY f.createdAt DESC
+      LIMIT ? OFFSET ?
+    `, [limit, offset]);
     const totalRes = await query('SELECT FOUND_ROWS() as total');
     const total = Array.isArray(totalRes) && totalRes.length > 0 ? totalRes[0].total : 0;
 
-    // Parse tags (stored as JSON) into arrays for client convenience
+    // Parse tags (stored as JSON) into arrays for client convenience and ensure createdByName
     const mapped = (rows || []).map((r: any) => {
       try {
         r.tags = r.tags ? JSON.parse(r.tags) : [];
       } catch (e) {
         r.tags = [];
       }
+      r.createdByName = r.createdByName || r.createdByUsername || (r.createdBy ? String(r.createdBy) : null);
       return r;
     });
 
