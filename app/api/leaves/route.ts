@@ -181,6 +181,75 @@ export async function POST(request: NextRequest) {
     }
     createdLeave.sessions = sessions;
     
+    // --- Send Telegram notification to the requester if configured ---
+    // Synchronous send so we can record success/failure into leave_notification_logs
+    try {
+      const rows = await query(
+        `SELECT u.id as userId, tc.botToken, tc.chatId, tc.enabled as telegramEnabled, CONCAT(e.firstName, ' ', e.lastName) as employeeName
+         FROM employees e
+         JOIN users u ON e.id = u.employeeId
+         LEFT JOIN telegram_config tc ON tc.userId = u.id
+         WHERE e.id = ?`,
+        [createdLeave.employeeId]
+      ) as any[];
+
+      const cfg = Array.isArray(rows) && rows.length ? rows[0] : null;
+
+      // Insert a pending log first
+      await query(`INSERT INTO leave_notification_logs (leaveId, status) VALUES (?, 'pending')`, [leaveId]);
+      const [logRow] = await query(`SELECT LAST_INSERT_ID() as id`) as any[];
+      const logId = logRow ? logRow.id : null;
+
+      if (cfg && cfg.botToken && cfg.chatId && cfg.telegramEnabled) {
+        const msgLines = [
+          `🔔 *THÔNG BÁO ĐƠN NGHỈ PHÉP*`,
+          ``,
+          `👤 *Người nộp:* ${cfg.employeeName}`,
+          `📆 *Từ:* ${formatDate(createdLeave.startDate)}`,
+          `📆 *Đến:* ${formatDate(createdLeave.endDate)}`,
+          `⏱️ *Số ngày:* ${createdLeave.days}`,
+        ];
+
+        if (createdLeave.reason) {
+          msgLines.push(``, `📝 *Lý do:*`, createdLeave.reason);
+        }
+
+        msgLines.push(``, `_Trạng thái: ${createdLeave.status}_`);
+
+        const telegramUrl = `https://api.telegram.org/bot${cfg.botToken}/sendMessage`;
+        const resp = await fetch(telegramUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: cfg.chatId,
+            text: msgLines.join('\n'),
+            parse_mode: 'Markdown',
+          }),
+        });
+
+        const result = await resp.json();
+        if (result && result.ok) {
+          await query(`UPDATE leave_notification_logs SET status = 'sent', sentAt = NOW() WHERE id = ?`, [logId]);
+        } else {
+          await query(`UPDATE leave_notification_logs SET status = 'failed', error = ? WHERE id = ?`, [JSON.stringify(result), logId]);
+          console.warn('Telegram send failed for leave:', result);
+        }
+      } else {
+        // Not configured: mark as failed with reason
+        await query(`UPDATE leave_notification_logs SET status = 'failed', error = ? WHERE id = ?`, ['Telegram not configured or disabled', logId]);
+        console.warn('Telegram not configured for leave requester');
+      }
+    } catch (err: any) {
+      // Attempt to write failure to leave_notification_logs (best-effort)
+      try {
+        await query(`INSERT INTO leave_notification_logs (leaveId, status, error) VALUES (?, 'failed', ?)` , [leaveId, err.message]);
+      } catch (innerErr) {
+        console.error('Failed to insert leave_notification_logs entry:', innerErr);
+      }
+
+      console.error('Error sending leave Telegram notification:', err);
+    }
+
     return createSuccessResponse(createdLeave, 'Tạo đơn nghỉ phép thành công');
   } catch (error: any) {
     if (error.message === 'Unauthorized') {
