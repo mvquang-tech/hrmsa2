@@ -188,6 +188,33 @@ export default function FilesPage() {
     try { localStorage.setItem('files_col_widths', JSON.stringify(colWidths)); } catch (e) {}
   }, [colWidths]);
 
+  // Hidden file input + click-to-select handlers
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const onClickUploadArea = () => {
+    if (!hasPermission('files.upload')) {
+      alert('Bạn không có quyền tải lên');
+      return;
+    }
+    fileInputRef.current?.click();
+  };
+
+  const onFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const items = Array.from(e.target.files || []);
+    const newPending = items.map((f, idx) => ({
+      id: Date.now() + idx,
+      file: f,
+      name: f.name,
+      size: f.size,
+      progress: 0,
+      status: 'pending' as const,
+      error: null,
+    }));
+    setPendingUploads(prev => [...prev, ...newPending]);
+    // reset input so same file can be selected again
+    e.currentTarget.value = '';
+  };
+
   const loadTagOptions = async () => {
     try {
       const res = await fetch('/api/files/tags');
@@ -573,13 +600,18 @@ export default function FilesPage() {
           </Box>
         </Box>
 
+        <input ref={fileInputRef} type="file" multiple style={{ display: 'none' }} onChange={onFileInputChange} />
         <Paper
           onDrop={onDrop}
           onDragOver={(e) => e.preventDefault()}
+          onClick={onClickUploadArea}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClickUploadArea(); } }}
+          role="button"
+          tabIndex={0}
           sx={{ p: 4, mb: 3, textAlign: 'center', border: '2px dashed', cursor: 'pointer' }}
         >
           <UploadFileIcon sx={{ fontSize: 48 }} />
-          <Typography>Thả file vào đây để tải lên hoặc kéo và thả</Typography>
+          <Typography>Thả file vào đây hoặc <Box component="span" sx={{ textDecoration: 'underline' }}>chọn file</Box></Typography>
         </Paper>
 
         {/* Pending uploads */}
