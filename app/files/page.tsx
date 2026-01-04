@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import Layout from '@/components/Layout';
 import { useAuth } from '@/hooks/useAuth';
 import {
@@ -121,6 +121,70 @@ export default function FilesPage() {
       return next;
     });
   };
+
+  // Resizable columns (generalized)
+  const MIN_COL_WIDTH = 80;
+  const DEFAULT_COL_WIDTHS = {
+    description: 240,
+    tags: 180,
+    fileType: 100,
+    notes: 200,
+    size: 120,
+    creator: 160,
+    date: 160,
+  } as const;
+
+  const [colWidths, setColWidths] = useState<Record<string, number>>(() => {
+    try {
+      const raw = typeof window !== 'undefined' ? localStorage.getItem('files_col_widths') : null;
+      return raw ? JSON.parse(raw) : { ...DEFAULT_COL_WIDTHS };
+    } catch (e) {
+      return { ...DEFAULT_COL_WIDTHS };
+    }
+  });
+
+  const startRef = useRef<{ col: string; startX: number; startWidth: number } | null>(null);
+
+  const onResize = (ev: MouseEvent) => {
+    if (!startRef.current) return;
+    const dx = ev.clientX - startRef.current.startX;
+    const next = Math.max(MIN_COL_WIDTH, Math.round(startRef.current.startWidth + dx));
+    setColWidths(prev => ({ ...prev, [startRef.current!.col]: next }));
+  };
+
+  const onStopResize = () => {
+    startRef.current = null;
+    document.removeEventListener('mousemove', onResize);
+    document.removeEventListener('mouseup', onStopResize);
+  };
+
+  const onStartResize = (col: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    startRef.current = { col, startX: e.clientX, startWidth: colWidths[col] ?? (DEFAULT_COL_WIDTHS as any)[col] ?? 200 };
+    document.addEventListener('mousemove', onResize);
+    document.addEventListener('mouseup', onStopResize);
+  };
+
+  const onHandleKeyDown = (col: string, e: React.KeyboardEvent) => {
+    if (['ArrowLeft','ArrowRight','PageUp','PageDown','Home','End'].includes(e.key)) {
+      e.preventDefault();
+      const step = e.shiftKey ? 50 : 10;
+      if (e.key === 'ArrowLeft' || e.key === 'PageDown') {
+        setColWidths(prev => ({ ...prev, [col]: Math.max(MIN_COL_WIDTH, (prev[col] ?? (DEFAULT_COL_WIDTHS as any)[col]) - step) }));
+      } else if (e.key === 'ArrowRight' || e.key === 'PageUp') {
+        setColWidths(prev => ({ ...prev, [col]: (prev[col] ?? (DEFAULT_COL_WIDTHS as any)[col]) + step }));
+      } else if (e.key === 'Home') {
+        setColWidths(prev => ({ ...prev, [col]: MIN_COL_WIDTH }));
+      } else if (e.key === 'End') {
+        const max = Math.max(MIN_COL_WIDTH, (typeof window !== 'undefined' ? Math.round(window.innerWidth / 3) : 800));
+        setColWidths(prev => ({ ...prev, [col]: max }));
+      }
+    }
+  };
+
+  useEffect(() => {
+    try { localStorage.setItem('files_col_widths', JSON.stringify(colWidths)); } catch (e) {}
+  }, [colWidths]);
 
   const loadTagOptions = async () => {
     try {
@@ -528,13 +592,104 @@ export default function FilesPage() {
             <TableHead>
               <TableRow>
                 <TableCell>Tên file</TableCell>
-                {columnsVisible.description && <TableCell>Mô tả</TableCell>}
-                {columnsVisible.tags && <TableCell>Tags</TableCell>}
-                {columnsVisible.fileType && <TableCell>Loại</TableCell>}
-                {columnsVisible.notes && <TableCell>Ghi chú</TableCell>}
-                {columnsVisible.size && <TableCell>Kích thước</TableCell>}
-                {columnsVisible.creator && <TableCell>Người tạo</TableCell>}
-                {columnsVisible.date && <TableCell>Ngày tạo</TableCell>}
+                {columnsVisible.description && (
+                  <TableCell sx={{ width: colWidths.description, minWidth: MIN_COL_WIDTH, position: 'relative' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Box component="span">Mô tả</Box>
+                        <Typography component="span" variant="caption" sx={{ color: 'text.secondary' }}>{colWidths.description}px</Typography>
+                      </Box>
+                      <Tooltip title={`${colWidths.description}px`} arrow>
+                        <Box
+                          onMouseDown={(e) => onStartResize('description', e)}
+                          onKeyDown={(e) => onHandleKeyDown('description', e)}
+                          tabIndex={0}
+                          role="separator"
+                          aria-orientation="horizontal"
+                          aria-label="Resize description column"
+                          aria-valuemin={MIN_COL_WIDTH}
+                          aria-valuemax={1000}
+                          aria-valuenow={colWidths.description}
+                          sx={{ width: 12, cursor: 'col-resize', height: '100%', ml: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', '&:hover': { backgroundColor: 'action.hover' }, '&:focus': { outline: '2px solid', outlineColor: 'primary.main', backgroundColor: 'action.selected' } }}
+                        >
+                          <Box component="span" sx={{ width: 4, height: 28, backgroundColor: 'grey.400', borderRadius: 1 }} />
+                        </Box>
+                      </Tooltip>
+                    </Box>
+                  </TableCell>
+                )}
+                {columnsVisible.tags && (
+                  <TableCell sx={{ width: colWidths.tags, minWidth: MIN_COL_WIDTH, position: 'relative' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <Box component="span">Tags</Box>
+                      <Tooltip title={`${colWidths.tags}px`} arrow>
+                        <Box onMouseDown={(e) => onStartResize('tags', e)} onKeyDown={(e) => onHandleKeyDown('tags', e)} tabIndex={0} role="separator" aria-label="Resize tags column" aria-valuemin={MIN_COL_WIDTH} aria-valuenow={colWidths.tags} sx={{ width: 10, cursor: 'col-resize', height: '100%', ml: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <Box component="span" sx={{ width: 3, height: 20, backgroundColor: 'grey.400', borderRadius: 1 }} />
+                        </Box>
+                      </Tooltip>
+                    </Box>
+                  </TableCell>
+                )}
+                {columnsVisible.fileType && (
+                  <TableCell sx={{ width: colWidths.fileType, minWidth: MIN_COL_WIDTH, position: 'relative' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <Box component="span">Loại</Box>
+                      <Tooltip title={`${colWidths.fileType}px`} arrow>
+                        <Box onMouseDown={(e) => onStartResize('fileType', e)} onKeyDown={(e) => onHandleKeyDown('fileType', e)} tabIndex={0} role="separator" aria-label="Resize file type column" aria-valuemin={MIN_COL_WIDTH} aria-valuenow={colWidths.fileType} sx={{ width: 10, cursor: 'col-resize', height: '100%', ml: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <Box component="span" sx={{ width: 3, height: 20, backgroundColor: 'grey.400', borderRadius: 1 }} />
+                        </Box>
+                      </Tooltip>
+                    </Box>
+                  </TableCell>
+                )}
+                {columnsVisible.notes && (
+                  <TableCell sx={{ width: colWidths.notes, minWidth: MIN_COL_WIDTH, position: 'relative' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <Box component="span">Ghi chú</Box>
+                      <Tooltip title={`${colWidths.notes}px`} arrow>
+                        <Box onMouseDown={(e) => onStartResize('notes', e)} onKeyDown={(e) => onHandleKeyDown('notes', e)} tabIndex={0} role="separator" aria-label="Resize notes column" aria-valuemin={MIN_COL_WIDTH} aria-valuenow={colWidths.notes} sx={{ width: 10, cursor: 'col-resize', height: '100%', ml: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <Box component="span" sx={{ width: 3, height: 20, backgroundColor: 'grey.400', borderRadius: 1 }} />
+                        </Box>
+                      </Tooltip>
+                    </Box>
+                  </TableCell>
+                )}
+                {columnsVisible.size && (
+                  <TableCell sx={{ width: colWidths.size, minWidth: MIN_COL_WIDTH, position: 'relative' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <Box component="span">Kích thước</Box>
+                      <Tooltip title={`${colWidths.size}px`} arrow>
+                        <Box onMouseDown={(e) => onStartResize('size', e)} onKeyDown={(e) => onHandleKeyDown('size', e)} tabIndex={0} role="separator" aria-label="Resize size column" aria-valuemin={MIN_COL_WIDTH} aria-valuenow={colWidths.size} sx={{ width: 10, cursor: 'col-resize', height: '100%', ml: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <Box component="span" sx={{ width: 3, height: 20, backgroundColor: 'grey.400', borderRadius: 1 }} />
+                        </Box>
+                      </Tooltip>
+                    </Box>
+                  </TableCell>
+                )}
+                {columnsVisible.creator && (
+                  <TableCell sx={{ width: colWidths.creator, minWidth: MIN_COL_WIDTH, position: 'relative' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <Box component="span">Người tạo</Box>
+                      <Tooltip title={`${colWidths.creator}px`} arrow>
+                        <Box onMouseDown={(e) => onStartResize('creator', e)} onKeyDown={(e) => onHandleKeyDown('creator', e)} tabIndex={0} role="separator" aria-label="Resize creator column" aria-valuemin={MIN_COL_WIDTH} aria-valuenow={colWidths.creator} sx={{ width: 10, cursor: 'col-resize', height: '100%', ml: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <Box component="span" sx={{ width: 3, height: 20, backgroundColor: 'grey.400', borderRadius: 1 }} />
+                        </Box>
+                      </Tooltip>
+                    </Box>
+                  </TableCell>
+                )}
+                {columnsVisible.date && (
+                  <TableCell sx={{ width: colWidths.date, minWidth: MIN_COL_WIDTH, position: 'relative' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <Box component="span">Ngày tạo</Box>
+                      <Tooltip title={`${colWidths.date}px`} arrow>
+                        <Box onMouseDown={(e) => onStartResize('date', e)} onKeyDown={(e) => onHandleKeyDown('date', e)} tabIndex={0} role="separator" aria-label="Resize date column" aria-valuemin={MIN_COL_WIDTH} aria-valuenow={colWidths.date} sx={{ width: 10, cursor: 'col-resize', height: '100%', ml: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <Box component="span" sx={{ width: 3, height: 20, backgroundColor: 'grey.400', borderRadius: 1 }} />
+                        </Box>
+                      </Tooltip>
+                    </Box>
+                  </TableCell>
+                )}
                 <TableCell align="right">Thao tác</TableCell>
               </TableRow>
             </TableHead>
@@ -550,19 +705,19 @@ export default function FilesPage() {
                       <Typography variant="caption" sx={{ color: 'text.secondary' }}>{(f.filename || '').split('.').pop()?.toUpperCase() || ''}</Typography>
                     </Box>
                   </TableCell>
-                  {columnsVisible.description && <TableCell sx={{ maxWidth: 240, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.description || ''}</TableCell>}
-                  {columnsVisible.tags && <TableCell>
+                  {columnsVisible.description && <TableCell sx={{ width: colWidths.description, minWidth: MIN_COL_WIDTH, whiteSpace: 'normal', wordBreak: 'break-word' }}>{f.description || ''}</TableCell>}
+                  {columnsVisible.tags && <TableCell sx={{ width: colWidths.tags, minWidth: MIN_COL_WIDTH }}>
                     <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                       {(Array.isArray(f.tags) ? f.tags : []).map((t: string) => (
                         <Chip key={t} label={t} size="small" />
                       ))}
                     </Box>
                   </TableCell>}
-                  {columnsVisible.fileType && <TableCell>{f.fileType || ''}</TableCell>}
-                  {columnsVisible.notes && <TableCell sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.notes || ''}</TableCell>}
-                  {columnsVisible.size && <TableCell>{formatSize(f.size)}</TableCell>}
-                  {columnsVisible.creator && <TableCell>{f.createdByName || f.createdBy}</TableCell>}
-                  {columnsVisible.date && <TableCell>{new Date(f.createdAt).toLocaleString()}</TableCell>}
+                  {columnsVisible.fileType && <TableCell sx={{ width: colWidths.fileType, minWidth: MIN_COL_WIDTH }}>{f.fileType || ''}</TableCell>}
+                  {columnsVisible.notes && <TableCell sx={{ width: colWidths.notes, minWidth: MIN_COL_WIDTH, whiteSpace: 'normal', wordBreak: 'break-word' }}>{f.notes || ''}</TableCell>}
+                  {columnsVisible.size && <TableCell sx={{ width: colWidths.size, minWidth: MIN_COL_WIDTH, textAlign: 'right' }}>{formatSize(f.size)}</TableCell>}
+                  {columnsVisible.creator && <TableCell sx={{ width: colWidths.creator, minWidth: MIN_COL_WIDTH }}>{f.createdByName || f.createdBy}</TableCell>}
+                  {columnsVisible.date && <TableCell sx={{ width: colWidths.date, minWidth: MIN_COL_WIDTH }}>{new Date(f.createdAt).toLocaleString()}</TableCell>}
                   <TableCell align="right">
                     <IconButton onClick={() => openPreview(f.id)} size="small">
                       <VisibilityIcon />
