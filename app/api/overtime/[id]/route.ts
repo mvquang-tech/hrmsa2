@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
-import { overtimeSchema, idSchema } from '@/lib/utils/validation';
+import { overtimeSchema, idSchema, overtimeBatchSchema } from '@/lib/utils/validation';
 import { createErrorResponse, createSuccessResponse, requireAuth } from '@/lib/middleware/auth';
 import { UserRole } from '@/lib/types';
 import { formatDate } from '@/lib/utils/db-helpers';
@@ -25,7 +25,27 @@ export async function GET(
       return createErrorResponse('Không có quyền truy cập', 403);
     }
 
-    return createSuccessResponse(otList[0]);
+    const ot = otList[0] as any;
+
+    // Attach days and slots
+    const days = await query('SELECT * FROM overtime_days WHERE overtimeId = ?', [ot.id]);
+    const dayIds = Array.isArray(days) ? days.map((d: any) => d.id) : [];
+    let slots: any[] = [];
+    if (dayIds.length > 0) {
+      slots = await query('SELECT * FROM overtime_slots WHERE dayId IN (?)', [dayIds]) as any[];
+    }
+    const slotMap = new Map<number, any[]>();
+    (Array.isArray(slots) ? slots : []).forEach((s: any) => {
+      const arr = slotMap.get(s.dayId) || [];
+      arr.push(s);
+      slotMap.set(s.dayId, arr);
+    });
+    (Array.isArray(days) ? days : []).forEach((d: any) => {
+      d.slots = slotMap.get(d.id) || [];
+    });
+    ot.days = days;
+
+    return createSuccessResponse(ot);
   } catch (error: any) {
     if (error.message === 'Unauthorized') {
       return createErrorResponse('Unauthorized', 401);
@@ -47,12 +67,13 @@ export async function PUT(
     const { id } = idSchema.parse({ id: params.id });
     const body = await request.json();
 
-    const [existing] = await query('SELECT * FROM overtime WHERE id = ?', [id]);
-    if ((existing as any[]).length === 0) {
+    const existing = await query('SELECT * FROM overtime WHERE id = ?', [id]);
+    const existingList = Array.isArray(existing) ? existing : [existing];
+    if (!existingList || existingList.length === 0) {
       return createErrorResponse('Không tìm thấy đơn ngoài giờ', 404);
     }
 
-    const existingOt = (existing as any[])[0];
+    const existingOt = existingList[0];
 
     // Employees can only update pending ones for themselves
     if (user.role === UserRole.EMPLOYEE) {
@@ -62,11 +83,48 @@ export async function PUT(
       if (existingOt.status !== 'pending') {
         return createErrorResponse('Chỉ có thể cập nhật đơn đang chờ duyệt', 400);
       }
-      const validated = overtimeSchema.parse(body);
-      await query(
-        'UPDATE overtime SET date = ?, hours = ?, reason = ? WHERE id = ?',
-        [formatDate(validated.date)!, validated.hours, validated.reason, id]
-      );
+      // Employee can update either legacy date/hours or provide days structure
+      if (body.days) {
+        // validate
+        overtimeBatchSchema.parse({ employeeId: existingOt.employeeId, reason: body.reason || existingOt.reason, days: body.days });
+        // replace days
+        await query('DELETE FROM overtime_days WHERE overtimeId = ?', [id]);
+        let grand = 0;
+        for (const day of body.days) {
+          let daySum = 0;
+          for (const slot of day.slots) {
+            const [sh, sm] = slot.start.split(':').map((v: string) => parseInt(v, 10));
+            const [eh, em] = slot.end.split(':').map((v: string) => parseInt(v, 10));
+            const startSec = sh * 3600 + sm * 60;
+            const endSec = eh * 3600 + em * 60;
+            if (endSec <= startSec) return createErrorResponse('Thời điểm kết thúc phải sau thời điểm bắt đầu', 400);
+            daySum += endSec - startSec;
+          }
+          const dayRes = await query('INSERT INTO overtime_days (overtimeId, date, total_seconds) VALUES (?, ?, ?)', [id, formatDate(day.date)!, daySum]) as any;
+          const dayId = dayRes.insertId;
+          for (const slot of day.slots) {
+            const [sh, sm] = slot.start.split(':').map((v: string) => parseInt(v, 10));
+            const [eh, em] = slot.end.split(':').map((v: string) => parseInt(v, 10));
+            const seconds = (eh * 3600 + em * 60) - (sh * 3600 + sm * 60);
+            await query('INSERT INTO overtime_slots (dayId, start_time, end_time, seconds) VALUES (?, ?, ?, ?)', [dayId, slot.start + ':00', slot.end + ':00', seconds]);
+          }
+          grand += daySum;
+        }
+        const hours = Math.round((grand / 3600) * 100) / 100;
+        await query('UPDATE overtime SET total_seconds = ?, total_hours = ?, reason = ? WHERE id = ?', [grand, hours, body.reason || existingOt.reason, id]);
+      } else {
+        const validated = overtimeSchema.parse(body);
+        // legacy update: overwrite single date/hours and replace days with a single day/slot
+        const seconds = Math.round(validated.hours * 3600);
+        await query('UPDATE overtime SET date = ?, hours = ?, reason = ?, total_seconds = ?, total_hours = ? WHERE id = ?', [formatDate(validated.date)!, validated.hours, validated.reason, seconds, Math.round(validated.hours * 100) / 100, id]);
+        await query('DELETE FROM overtime_days WHERE overtimeId = ?', [id]);
+        const dayRes = await query('INSERT INTO overtime_days (overtimeId, date, total_seconds) VALUES (?, ?, ?)', [id, formatDate(validated.date)!, seconds]) as any;
+        const endH = Math.floor(seconds / 3600).toString().padStart(2, '0');
+        const endM = Math.floor((seconds % 3600) / 60).toString().padStart(2, '0');
+        const endS = (seconds % 60).toString().padStart(2, '0');
+        const endTimeStr = `${endH}:${endM}:${endS}`;
+        await query('INSERT INTO overtime_slots (dayId, start_time, end_time, seconds) VALUES (?, ?, ?, ?)', [dayRes.insertId, '00:00:00', endTimeStr, seconds]);
+      }
     } else {
       // Managers/HR/Admin can approve/reject
       if (body.status && ['approved', 'rejected'].includes(body.status)) {
@@ -74,12 +132,46 @@ export async function PUT(
           'UPDATE overtime SET status = ?, approvedBy = ?, approvedAt = NOW() WHERE id = ?',
           [body.status, user.userId, id]
         );
+      } else if (body.days) {
+        // validate
+        overtimeBatchSchema.parse({ employeeId: existingOt.employeeId, reason: body.reason || existingOt.reason, days: body.days });
+        // update reason and replace days
+        await query('DELETE FROM overtime_days WHERE overtimeId = ?', [id]);
+        let grand = 0;
+        for (const day of body.days) {
+          let daySum = 0;
+          for (const slot of day.slots) {
+            const [sh, sm] = slot.start.split(':').map((v: string) => parseInt(v, 10));
+            const [eh, em] = slot.end.split(':').map((v: string) => parseInt(v, 10));
+            const startSec = sh * 3600 + sm * 60;
+            const endSec = eh * 3600 + em * 60;
+            if (endSec <= startSec) return createErrorResponse('Thời điểm kết thúc phải sau thời điểm bắt đầu', 400);
+            daySum += endSec - startSec;
+          }
+          const dayRes = await query('INSERT INTO overtime_days (overtimeId, date, total_seconds) VALUES (?, ?, ?)', [id, formatDate(day.date)!, daySum]) as any;
+          const dayId = dayRes.insertId;
+          for (const slot of day.slots) {
+            const [sh, sm] = slot.start.split(':').map((v: string) => parseInt(v, 10));
+            const [eh, em] = slot.end.split(':').map((v: string) => parseInt(v, 10));
+            const seconds = (eh * 3600 + em * 60) - (sh * 3600 + sm * 60);
+            await query('INSERT INTO overtime_slots (dayId, start_time, end_time, seconds) VALUES (?, ?, ?, ?)', [dayId, slot.start + ':00', slot.end + ':00', seconds]);
+          }
+          grand += daySum;
+        }
+        const hours = Math.round((grand / 3600) * 100) / 100;
+        await query('UPDATE overtime SET total_seconds = ?, total_hours = ?, reason = ? WHERE id = ?', [grand, hours, body.reason || existingOt.reason, id]);
       } else {
         const validated = overtimeSchema.parse(body);
-        await query(
-          'UPDATE overtime SET date = ?, hours = ?, reason = ? WHERE id = ?',
-          [formatDate(validated.date)!, validated.hours, validated.reason, id]
-        );
+        // legacy update path
+        const seconds = Math.round(validated.hours * 3600);
+        await query('UPDATE overtime SET date = ?, hours = ?, reason = ?, total_seconds = ?, total_hours = ? WHERE id = ?', [formatDate(validated.date)!, validated.hours, validated.reason, seconds, Math.round(validated.hours * 100) / 100, id]);
+        await query('DELETE FROM overtime_days WHERE overtimeId = ?', [id]);
+        const dayRes = await query('INSERT INTO overtime_days (overtimeId, date, total_seconds) VALUES (?, ?, ?)', [id, formatDate(validated.date)!, seconds]) as any;
+        const endH = Math.floor(seconds / 3600).toString().padStart(2, '0');
+        const endM = Math.floor((seconds % 3600) / 60).toString().padStart(2, '0');
+        const endS = (seconds % 60).toString().padStart(2, '0');
+        const endTimeStr = `${endH}:${endM}:${endS}`;
+        await query('INSERT INTO overtime_slots (dayId, start_time, end_time, seconds) VALUES (?, ?, ?, ?)', [dayRes.insertId, '00:00:00', endTimeStr, seconds]);
       }
     }
 

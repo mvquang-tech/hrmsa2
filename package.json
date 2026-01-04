@@ -14,7 +14,8 @@
     "migrate-leave-sessions-table": "node scripts/migrate-leave-sessions-table.js",
     "migrate-education-levels": "node scripts/apply-migration-education-levels.js",
     "migrate-academic-titles": "node scripts/apply-migration-academic-titles.js",
-    "migrate-employee-extra-fields": "node scripts/apply-migration-employee-extra-fields.js"
+    "migrate-employee-extra-fields": "node scripts/apply-migration-employee-extra-fields.js",
+    "migrate-overtime-days-slots": "node scripts/apply-migration-overtime-days-slots.js"
   },
   "dependencies": {
     "next": "^14.0.4",

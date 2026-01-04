@@ -61,6 +61,19 @@ export const overtimeSchema = z.object({
   status: z.enum(['pending', 'approved', 'rejected']).optional(),
 });
 
+// Batch overtime request validation
+export const overtimeBatchSchema = z.object({
+  employeeId: z.number().min(1, 'Nhân viên là bắt buộc'),
+  reason: z.string().min(5, 'Lý do ít nhất 5 ký tự'),
+  days: z.array(z.object({
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format'),
+    slots: z.array(z.object({
+      start: z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/, 'Thời gian bắt đầu không hợp lệ'),
+      end: z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/, 'Thời gian kết thúc không hợp lệ'),
+    })).min(1).max(4),
+  })).min(1),
+});
+
 // Leave validation
 export const leaveSchema = z.object({
   employeeId: z.number().min(1, 'Nhân viên là bắt buộc'),

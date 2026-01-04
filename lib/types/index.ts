@@ -46,15 +46,40 @@ export interface Employee {
   updatedAt: Date;
 }
 
+export interface OvertimeSlot {
+  id: number;
+  dayId: number;
+  start_time?: string | null; // HH:MM:SS
+  end_time?: string | null; // HH:MM:SS
+  seconds: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface OvertimeDay {
+  id: number;
+  overtimeId: number;
+  date: Date;
+  total_seconds: number;
+  slots?: OvertimeSlot[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface Overtime {
   id: number;
   employeeId: number;
-  date: Date;
-  hours: number;
+  // legacy single-date fields (may be null after migration)
+  date?: Date | null;
+  hours?: number | null;
+  // new aggregates
+  total_seconds?: number;
+  total_hours?: number;
   reason: string;
   status: 'pending' | 'approved' | 'rejected';
   approvedBy?: number;
   approvedAt?: Date;
+  days?: OvertimeDay[];
   createdAt: Date;
   updatedAt: Date;
 }
