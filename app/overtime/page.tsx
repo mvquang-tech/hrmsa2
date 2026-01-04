@@ -33,6 +33,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import InfoIcon from '@mui/icons-material/Info';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import EventIcon from '@mui/icons-material/Event';
+import AddCircleIcon from '@mui/icons-material/AddCircle';
 import { UserRole } from '@/lib/types';
 
 interface Employee {
@@ -601,53 +602,83 @@ export default function OvertimePage() {
                         {d.date ? new Date(d.date).toLocaleDateString('vi-VN', { weekday: 'long' }) : ''}
                       </Typography>
                       <Box sx={{ flex: 1 }} />
-                      <Button color="error" onClick={() => { setDays(days.filter((_, i) => i !== idx)); }}>
-                        Xóa ngày
-                      </Button>
+                      <Tooltip title="Xóa ngày">
+                        <IconButton size="small" onClick={() => { setDays(days.filter((_, i) => i !== idx)); }} sx={{ color: 'text.secondary' }} aria-label="Xóa ngày">
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
                     </Box>
 
                     {/* Slots */}
-                    {d.slots.map((s, sidx) => (
-                      <Box key={sidx} sx={{ display: 'flex', gap: 1, alignItems: 'center', mb: 1 }}>
-                        <TextField
-                          label={`Bắt đầu ${sidx + 1}`}
-                          type="time"
-                          value={s.start}
-                          onChange={(e) => {
-                            const newDays = [...days];
-                            newDays[idx].slots[sidx].start = e.target.value;
-                            setDays(newDays);
-                          }}
-                          InputLabelProps={{ shrink: true }}
-                        />
-                        <TextField
-                          label={`Kết thúc ${sidx + 1}`}
-                          type="time"
-                          value={s.end}
-                          onChange={(e) => {
-                            const newDays = [...days];
-                            newDays[idx].slots[sidx].end = e.target.value;
-                            setDays(newDays);
-                          }}
-                          InputLabelProps={{ shrink: true }}
-                        />
-                        <Button color="error" onClick={() => {
-                          const newDays = [...days];
-                          newDays[idx].slots.splice(sidx, 1);
-                          setDays(newDays);
-                        }}>Xóa</Button>
-                      </Box>
-                    ))}
+                    {d.slots.map((s, sidx) => {
+                      const computeSlotSec = (start?: string, end?: string) => {
+                        if (!start || !end) return 0;
+                        const [sh, sm] = start.split(':').map((v) => parseInt(v, 10));
+                        const [eh, em] = end.split(':').map((v) => parseInt(v, 10));
+                        const startSec = sh * 3600 + sm * 60;
+                        const endSec = eh * 3600 + em * 60;
+                        return endSec > startSec ? endSec - startSec : 0;
+                      };
+                      const sec = computeSlotSec(s.start, s.end);
+                      return (
+                        <Box key={sidx} sx={{ display: 'flex', gap: 1, alignItems: 'center', mb: 1 }}>
+                          <TextField
+                            label={`Bắt đầu ${sidx + 1}`}
+                            type="time"
+                            value={s.start}
+                            onChange={(e) => {
+                              const newDays = [...days];
+                              newDays[idx].slots[sidx].start = e.target.value;
+                              setDays(newDays);
+                            }}
+                            InputLabelProps={{ shrink: true }}
+                            size="small"
+                          />
+                          <TextField
+                            label={`Kết thúc ${sidx + 1}`}
+                            type="time"
+                            value={s.end}
+                            onChange={(e) => {
+                              const newDays = [...days];
+                              newDays[idx].slots[sidx].end = e.target.value;
+                              setDays(newDays);
+                            }}
+                            InputLabelProps={{ shrink: true }}
+                            size="small"
+                          />
+
+                          <Chip label={`${(sec/3600).toFixed(2)} giờ`} size="small" variant="outlined" sx={{ ml: 1 }} />
+
+                          <Box sx={{ flex: 1 }} />
+
+                          <Tooltip title="Xóa thời điểm">
+                            <IconButton size="small" onClick={() => {
+                              const newDays = [...days];
+                              newDays[idx].slots.splice(sidx, 1);
+                              setDays(newDays);
+                            }} sx={{ color: 'text.secondary' }} aria-label="Xóa thời điểm">
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        </Box>
+                      );
+                    })}
 
                     <Box sx={{ display: 'flex', gap: 1, mt: 1, alignItems: 'center' }}>
-                      <Button
-                        disabled={d.slots.length >= 4}
-                        onClick={() => {
-                          const newDays = [...days];
-                          newDays[idx].slots.push({ start: '07:00', end: '11:00' });
-                          setDays(newDays);
-                        }}
-                      >Thêm thời điểm</Button>
+                      <Tooltip title="Thêm thời điểm">
+                        <IconButton
+                          disabled={d.slots.length >= 4}
+                          onClick={() => {
+                            const newDays = [...days];
+                            newDays[idx].slots.push({ start: '07:00', end: '11:00' });
+                            setDays(newDays);
+                          }}
+                          color="success"
+                          aria-label="Thêm thời điểm"
+                        >
+                          <AddCircleIcon />
+                        </IconButton>
+                      </Tooltip>
                       <Box sx={{ flex: 1 }} />
                       <Typography variant="body2" color="text.secondary">Tổng giờ ngày: {formatSeconds(calcTotals.perDay.get(d.date) || 0)}</Typography>
                     </Box>
