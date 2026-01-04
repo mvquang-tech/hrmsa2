@@ -34,9 +34,10 @@ export default function MeetingCalendar({
   const theme = useTheme();
   const isSmall = useMediaQuery(theme.breakpoints.down('sm'));
 
-  // Generate 6x7 grid days
+  // Generate 6x7 grid days (week starts on Monday)
   const days = useMemo(() => {
-    const firstDayIndex = startOfMonth.getDay(); // 0=Sunday
+    // convert JS getDay() (0=Sun..6=Sat) to Monday-based index (0=Mon..6=Sun)
+    const firstDayIndex = (startOfMonth.getDay() + 6) % 7; // 0=Monday
     const start = new Date(startOfMonth);
     start.setDate(start.getDate() - firstDayIndex);
 
@@ -85,8 +86,8 @@ export default function MeetingCalendar({
       </Box>
 
       <Box display="grid" gridTemplateColumns="repeat(7, 1fr)" gap={isSmall ? 1 : 2}>
-        {['CN','T2','T3','T4','T5','T6','T7'].map((label) => (
-          <Box key={label} sx={{ width: '100%', textAlign: 'center', py: 1, bgcolor: 'background.paper' }}>
+        {['T2','T3','T4','T5','T6','T7','CN'].map((label) => (
+          <Box key={label} sx={{ width: '100%', textAlign: 'center', py: 1, bgcolor: 'background.paper', borderBottom: '1px solid', borderColor: 'divider' }}>
             <Typography variant="caption" color="text.secondary">{label}</Typography>
           </Box>
         ))}
@@ -108,7 +109,7 @@ export default function MeetingCalendar({
                 cursor: 'pointer',
                 backgroundColor: today ? 'action.selected' : inMonth ? 'background.paper' : 'action.hover',
                 border: '1px solid',
-                borderColor: today ? 'primary.main' : 'transparent',
+                borderColor: today ? 'primary.main' : 'divider',
                 boxShadow: 0,
                 transition: 'transform 150ms ease, box-shadow 150ms ease',
                 '&:hover': { transform: 'translateY(-3px)', boxShadow: 3 },
@@ -117,7 +118,13 @@ export default function MeetingCalendar({
                 flexDirection: 'column',
                 position: 'relative',
                 outline: 'none',
-                '&:focus-visible': { boxShadow: '0 0 0 3px rgba(25,118,210,0.12)', borderColor: 'primary.main' }
+                '&:focus-visible': { boxShadow: '0 0 0 3px rgba(25,118,210,0.12)', borderColor: 'primary.main' },
+                // Show add button only on hover or when the cell receives focus
+                '&:hover .add-btn, &:focus-within .add-btn': {
+                  opacity: 1,
+                  transform: 'scale(1)',
+                  pointerEvents: 'auto',
+                }
               }}
               onClick={() => onDayClick(ymd)}
               role="button"
@@ -125,12 +132,13 @@ export default function MeetingCalendar({
               onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onDayClick(ymd); } }}
               aria-label={`Ngày ${ymd} (${dayMeetings.length} cuộc họp)`}
             >
-              {/* Create button (small) */}
+              {/* Create button (small) - hidden by default, appears on hover/focus */}
               {onCreateDay && (
                 <IconButton
+                  className="add-btn"
                   size="small"
                   onClick={(e) => { e.stopPropagation(); onCreateDay(ymd); }}
-                  sx={{ position: 'absolute', top: 8, right: 8, bgcolor: 'background.paper', zIndex: 2 }}
+                  sx={{ position: 'absolute', top: 8, right: 8, bgcolor: 'background.paper', zIndex: 2, opacity: 0, transform: 'scale(0.92)', transition: 'opacity 150ms ease, transform 150ms ease', pointerEvents: 'none' }}
                   aria-label={`Tạo cuộc họp ngày ${ymd}`}
                 >
                   <AddIcon fontSize="small" color="primary" />
@@ -156,7 +164,22 @@ export default function MeetingCalendar({
 
               <Box mt={1} display="flex" flexDirection="column" gap={0.5}>
                 {dayMeetings.slice(0, 2).map((m) => (
-                  <Typography key={m.id} variant="caption" noWrap sx={{ color: m.isRead ? 'text.secondary' : 'text.primary', fontWeight: m.isRead ? 400 : 600 }}>{m.time ? `${m.time} ` : ''}{m.title}</Typography>
+                  <Typography
+                    key={m.id}
+                    variant="caption"
+                    title={m.title}
+                    sx={{
+                      color: m.isRead ? 'text.secondary' : 'text.primary',
+                      fontWeight: m.isRead ? 400 : 600,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      display: 'block',
+                      maxWidth: '100%'
+                    }}
+                  >
+                    {m.time ? `${m.time} ` : ''}{m.title}
+                  </Typography>
                 ))}
                 {dayMeetings.length === 0 && <Typography variant="caption" color="text.secondary">&nbsp;</Typography>}
               </Box>
