@@ -79,7 +79,7 @@ export async function PUT(
 
     await query(
       `UPDATE employees SET code = ?, firstName = ?, lastName = ?, email = ?, phone = ?, address = ?, 
-       dateOfBirth = ?, dateOfJoin = ?, departmentId = ?, position = ?, salary = ?, status = ?, educationLevelId = ?, academicTitleId = ? WHERE id = ?`,
+       dateOfBirth = ?, dateOfJoin = ?, departmentId = ?, position = ?, salary = ?, status = ?, educationLevelId = ?, academicTitleId = ?, placeOfTraining = ?, gender = ?, cccdNumber = ?, cccdIssuedDate = ?, cccdIssuedPlace = ?, internshipStart = ?, internshipEnd = ?, trainingStart = ?, trainingEnd = ?, probationStart = ?, probationEnd = ?, officialStart = ?, officialEnd = ? WHERE id = ?`,
       [
         validated.code,
         validated.firstName,
@@ -95,6 +95,19 @@ export async function PUT(
         validated.status,
         validated.educationLevelId || null,
         validated.academicTitleId || null,
+        validated.placeOfTraining || null,
+        validated.gender || null,
+        validated.cccdNumber || null,
+        validated.cccdIssuedDate ? formatDate(validated.cccdIssuedDate) : null,
+        validated.cccdIssuedPlace || null,
+        validated.internshipStart ? formatDate(validated.internshipStart) : null,
+        validated.internshipEnd ? formatDate(validated.internshipEnd) : null,
+        validated.trainingStart ? formatDate(validated.trainingStart) : null,
+        validated.trainingEnd ? formatDate(validated.trainingEnd) : null,
+        validated.probationStart ? formatDate(validated.probationStart) : null,
+        validated.probationEnd ? formatDate(validated.probationEnd) : null,
+        validated.officialStart ? formatDate(validated.officialStart) : null,
+        validated.officialEnd ? formatDate(validated.officialEnd) : null,
         id,
       ]
     );

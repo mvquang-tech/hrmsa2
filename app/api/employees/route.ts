@@ -79,8 +79,8 @@ export async function POST(request: NextRequest) {
     }
 
     const result = await query(
-      `INSERT INTO employees (code, firstName, lastName, email, phone, address, dateOfBirth, dateOfJoin, departmentId, position, salary, status, educationLevelId, academicTitleId) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO employees (code, firstName, lastName, email, phone, address, dateOfBirth, dateOfJoin, departmentId, position, salary, status, educationLevelId, academicTitleId, placeOfTraining, gender, cccdNumber, cccdIssuedDate, cccdIssuedPlace, internshipStart, internshipEnd, trainingStart, trainingEnd, probationStart, probationEnd, officialStart, officialEnd) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         validated.code,
         validated.firstName,
@@ -96,6 +96,19 @@ export async function POST(request: NextRequest) {
         validated.status,
         validated.educationLevelId || null,
         validated.academicTitleId || null,
+        validated.placeOfTraining || null,
+        validated.gender || null,
+        validated.cccdNumber || null,
+        validated.cccdIssuedDate ? formatDate(validated.cccdIssuedDate) : null,
+        validated.cccdIssuedPlace || null,
+        validated.internshipStart ? formatDate(validated.internshipStart) : null,
+        validated.internshipEnd ? formatDate(validated.internshipEnd) : null,
+        validated.trainingStart ? formatDate(validated.trainingStart) : null,
+        validated.trainingEnd ? formatDate(validated.trainingEnd) : null,
+        validated.probationStart ? formatDate(validated.probationStart) : null,
+        validated.probationEnd ? formatDate(validated.probationEnd) : null,
+        validated.officialStart ? formatDate(validated.officialStart) : null,
+        validated.officialEnd ? formatDate(validated.officialEnd) : null,
       ]
     ) as any;
 

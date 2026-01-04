@@ -62,6 +62,8 @@ interface Employee {
   lastName: string;
   email: string;
   phone?: string;
+  dateOfBirth?: string | null;
+  address?: string | null;
   dateOfJoin: string;
   departmentId: number;
   position?: string;
@@ -71,6 +73,19 @@ interface Employee {
   educationLevelName?: string | null;
   academicTitleId?: number | null;
   academicTitleName?: string | null;
+  placeOfTraining?: string | null;
+  gender?: string | null;
+  cccdNumber?: string | null;
+  cccdIssuedDate?: string | null;
+  cccdIssuedPlace?: string | null;
+  internshipStart?: string | null;
+  internshipEnd?: string | null;
+  trainingStart?: string | null;
+  trainingEnd?: string | null;
+  probationStart?: string | null;
+  probationEnd?: string | null;
+  officialStart?: string | null;
+  officialEnd?: string | null;
 }
 
 // Column configuration
@@ -93,6 +108,21 @@ const defaultColumns: ColumnConfig[] = [
   { id: 'hasAccount', label: 'Tài khoản', visible: true, minWidth: 100 },
   { id: 'educationLevel', label: 'Trình độ', visible: false, minWidth: 160 },
   { id: 'academicTitle', label: 'Chức danh KH', visible: false, minWidth: 160 },
+  { id: 'placeOfTraining', label: 'Nơi đào tạo', visible: true, minWidth: 200 },
+  { id: 'gender', label: 'Giới tính', visible: true, minWidth: 90 },
+  { id: 'cccdNumber', label: 'Số CCCD', visible: true, minWidth: 140 },
+  { id: 'cccdIssuedDate', label: 'Ngày cấp CCCD', visible: false, minWidth: 120 },
+  { id: 'cccdIssuedPlace', label: 'Nơi cấp CCCD', visible: false, minWidth: 200 },
+  { id: 'internshipStart', label: 'Thời gian bắt đầu thực tập', visible: false, minWidth: 140 },
+  { id: 'internshipEnd', label: 'Thời gian kết thúc thực tập', visible: false, minWidth: 140 },
+  { id: 'trainingStart', label: 'Thời gian bắt đầu học việc', visible: false, minWidth: 140 },
+  { id: 'trainingEnd', label: 'Thời gian kết thúc học việc', visible: false, minWidth: 140 },
+  { id: 'probationStart', label: 'Thời gian bắt đầu thử việc', visible: false, minWidth: 140 },
+  { id: 'probationEnd', label: 'Thời gian kết thúc thử việc', visible: false, minWidth: 140 },
+  { id: 'officialStart', label: 'Thời gian bắt đầu chính thức', visible: false, minWidth: 140 },
+  { id: 'officialEnd', label: 'Thời gian kết thúc chính thức', visible: false, minWidth: 140 },
+  { id: 'dateOfBirth', label: 'Ngày sinh', visible: true, minWidth: 120 },
+  { id: 'address', label: 'Địa chỉ', visible: true, minWidth: 220 },
 ];
 
 export default function EmployeesPage() {
@@ -110,12 +140,28 @@ export default function EmployeesPage() {
   const [academicTitles, setAcademicTitles] = useState<{id:number;code:string;name:string;}[]>([]);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Employee | null>(null);
+  const [moreOpen, setMoreOpen] = useState(false);
   const [formData, setFormData] = useState({
     code: '',
     firstName: '',
     lastName: '',
     email: '',
     phone: '',
+    dateOfBirth: '',
+    address: '',
+    placeOfTraining: '',
+    gender: '',
+    cccdNumber: '',
+    cccdIssuedDate: '',
+    cccdIssuedPlace: '',
+    internshipStart: '',
+    internshipEnd: '',
+    trainingStart: '',
+    trainingEnd: '',
+    probationStart: '',
+    probationEnd: '',
+    officialStart: '',
+    officialEnd: '',
     dateOfJoin: '',
     departmentId: '',
     position: '',
@@ -236,6 +282,21 @@ export default function EmployeesPage() {
         lastName: emp.lastName,
         email: emp.email,
         phone: emp.phone || '',
+        dateOfBirth: emp.dateOfBirth ? emp.dateOfBirth.split('T')[0] : '',
+        address: emp.address || '',
+        placeOfTraining: emp.placeOfTraining || '',
+        gender: emp.gender || '',
+        cccdNumber: emp.cccdNumber || '',
+        cccdIssuedDate: emp.cccdIssuedDate ? emp.cccdIssuedDate.split('T')[0] : '',
+        cccdIssuedPlace: emp.cccdIssuedPlace || '',
+        internshipStart: emp.internshipStart ? emp.internshipStart.split('T')[0] : '',
+        internshipEnd: emp.internshipEnd ? emp.internshipEnd.split('T')[0] : '',
+        trainingStart: emp.trainingStart ? emp.trainingStart.split('T')[0] : '',
+        trainingEnd: emp.trainingEnd ? emp.trainingEnd.split('T')[0] : '',
+        probationStart: emp.probationStart ? emp.probationStart.split('T')[0] : '',
+        probationEnd: emp.probationEnd ? emp.probationEnd.split('T')[0] : '',
+        officialStart: emp.officialStart ? emp.officialStart.split('T')[0] : '',
+        officialEnd: emp.officialEnd ? emp.officialEnd.split('T')[0] : '',
         dateOfJoin: emp.dateOfJoin.split('T')[0],
         departmentId: emp.departmentId.toString(),
         position: emp.position || '',
@@ -251,6 +312,21 @@ export default function EmployeesPage() {
         lastName: '',
         email: '',
         phone: '',
+        dateOfBirth: '',
+        address: '',
+        placeOfTraining: '',
+        gender: '',
+        cccdNumber: '',
+        cccdIssuedDate: '',
+        cccdIssuedPlace: '',
+        internshipStart: '',
+        internshipEnd: '',
+        trainingStart: '',
+        trainingEnd: '',
+        probationStart: '',
+        probationEnd: '',
+        officialStart: '',
+        officialEnd: '',
         dateOfJoin: '',
         departmentId: '',
         position: '',
@@ -284,6 +360,21 @@ export default function EmployeesPage() {
         body: JSON.stringify({
           ...formData,
           departmentId: parseInt(formData.departmentId),
+          dateOfBirth: formData.dateOfBirth || null,
+          address: formData.address || null,
+          placeOfTraining: formData.placeOfTraining || null,
+          gender: formData.gender || null,
+          cccdNumber: formData.cccdNumber || null,
+          cccdIssuedDate: formData.cccdIssuedDate || null,
+          cccdIssuedPlace: formData.cccdIssuedPlace || null,
+          internshipStart: formData.internshipStart || null,
+          internshipEnd: formData.internshipEnd || null,
+          trainingStart: formData.trainingStart || null,
+          trainingEnd: formData.trainingEnd || null,
+          probationStart: formData.probationStart || null,
+          probationEnd: formData.probationEnd || null,
+          officialStart: formData.officialStart || null,
+          officialEnd: formData.officialEnd || null,
           educationLevelId: formData.educationLevelId ? parseInt(formData.educationLevelId) : null,
           academicTitleId: formData.academicTitleId ? parseInt(formData.academicTitleId) : null,
         }),
@@ -638,6 +729,21 @@ export default function EmployeesPage() {
                 {isColumnVisible('phone') && <TableCell>Điện thoại</TableCell>}
                 {isColumnVisible('department') && <TableCell>Phòng ban</TableCell>}
                 {isColumnVisible('position') && <TableCell>Chức vụ</TableCell>}
+                {isColumnVisible('placeOfTraining') && <TableCell>Nơi đào tạo</TableCell>}
+                {isColumnVisible('gender') && <TableCell>Giới tính</TableCell>}
+                {isColumnVisible('cccdNumber') && <TableCell>Số CCCD</TableCell>}
+                {isColumnVisible('cccdIssuedDate') && <TableCell>Ngày cấp CCCD</TableCell>}
+                {isColumnVisible('cccdIssuedPlace') && <TableCell>Nơi cấp CCCD</TableCell>}
+                {isColumnVisible('internshipStart') && <TableCell>Thời gian bắt đầu thực tập</TableCell>}
+                {isColumnVisible('internshipEnd') && <TableCell>Thời gian kết thúc thực tập</TableCell>}
+                {isColumnVisible('trainingStart') && <TableCell>Thời gian bắt đầu học việc</TableCell>}
+                {isColumnVisible('trainingEnd') && <TableCell>Thời gian kết thúc học việc</TableCell>}
+                {isColumnVisible('probationStart') && <TableCell>Thời gian bắt đầu thử việc</TableCell>}
+                {isColumnVisible('probationEnd') && <TableCell>Thời gian kết thúc thử việc</TableCell>}
+                {isColumnVisible('officialStart') && <TableCell>Thời gian bắt đầu chính thức</TableCell>}
+                {isColumnVisible('officialEnd') && <TableCell>Thời gian kết thúc chính thức</TableCell>}
+                {isColumnVisible('dateOfBirth') && <TableCell>Ngày sinh</TableCell>}
+                {isColumnVisible('address') && <TableCell>Địa chỉ</TableCell>}
                 {isColumnVisible('educationLevel') && <TableCell>Trình độ</TableCell>}
                 {isColumnVisible('academicTitle') && <TableCell>Chức danh KH</TableCell>}
                 {isColumnVisible('dateOfJoin') && <TableCell>Ngày vào làm</TableCell>}
@@ -666,14 +772,32 @@ export default function EmployeesPage() {
                       {isColumnVisible('phone') && <TableCell>{emp.phone || '-'}</TableCell>}
                       {isColumnVisible('department') && <TableCell>{dept?.name || '-'}</TableCell>}
                       {isColumnVisible('position') && <TableCell>{emp.position || '-'}</TableCell>}
+                      {isColumnVisible('placeOfTraining') && <TableCell>{emp.placeOfTraining || '-'}</TableCell>}
+                      {isColumnVisible('gender') && <TableCell>{emp.gender === 'male' ? 'Nam' : emp.gender === 'female' ? 'Nữ' : '-'}</TableCell>}
+                      {isColumnVisible('cccdNumber') && <TableCell>{emp.cccdNumber || '-'}</TableCell>}
+                      {isColumnVisible('cccdIssuedDate') && <TableCell>{emp.cccdIssuedDate ? new Date(emp.cccdIssuedDate).toLocaleDateString('vi-VN') : '-'}</TableCell>}
+                      {isColumnVisible('cccdIssuedPlace') && <TableCell>{emp.cccdIssuedPlace || '-'}</TableCell>}
+                      {isColumnVisible('internshipStart') && <TableCell>{emp.internshipStart ? new Date(emp.internshipStart).toLocaleDateString('vi-VN') : '-'}</TableCell>}
+                      {isColumnVisible('internshipEnd') && <TableCell>{emp.internshipEnd ? new Date(emp.internshipEnd).toLocaleDateString('vi-VN') : '-'}</TableCell>}
+                      {isColumnVisible('trainingStart') && <TableCell>{emp.trainingStart ? new Date(emp.trainingStart).toLocaleDateString('vi-VN') : '-'}</TableCell>}
+                      {isColumnVisible('trainingEnd') && <TableCell>{emp.trainingEnd ? new Date(emp.trainingEnd).toLocaleDateString('vi-VN') : '-'}</TableCell>}
+                      {isColumnVisible('probationStart') && <TableCell>{emp.probationStart ? new Date(emp.probationStart).toLocaleDateString('vi-VN') : '-'}</TableCell>}
+                      {isColumnVisible('probationEnd') && <TableCell>{emp.probationEnd ? new Date(emp.probationEnd).toLocaleDateString('vi-VN') : '-'}</TableCell>}
+                      {isColumnVisible('officialStart') && <TableCell>{emp.officialStart ? new Date(emp.officialStart).toLocaleDateString('vi-VN') : '-'}</TableCell>}
+                      {isColumnVisible('officialEnd') && <TableCell>{emp.officialEnd ? new Date(emp.officialEnd).toLocaleDateString('vi-VN') : '-'}</TableCell>}
+                      {isColumnVisible('dateOfBirth') && (
+                        <TableCell>{emp.dateOfBirth ? new Date(emp.dateOfBirth).toLocaleDateString('vi-VN') : '-'}</TableCell>
+                      )}
+                      {isColumnVisible('address') && (
+                        <TableCell sx={{ whiteSpace: 'normal', maxWidth: 300 }}>{emp.address || '-'}</TableCell>
+                      )}
                       {isColumnVisible('educationLevel') && <TableCell>{emp.educationLevelName || '-'}</TableCell>}
                       {isColumnVisible('academicTitle') && <TableCell>{emp.academicTitleName || '-'}</TableCell>}
                       {isColumnVisible('dateOfJoin') && (
                         <TableCell>
                           {new Date(emp.dateOfJoin).toLocaleDateString('vi-VN')}
                         </TableCell>
-                      )}
-                      {isColumnVisible('status') && (
+                      )}                      {isColumnVisible('status') && (
                         <TableCell>
                           <Chip 
                             label={emp.status === 'active' ? 'Hoạt động' : emp.status === 'inactive' ? 'Tạm nghỉ' : 'Đã nghỉ'}
@@ -777,6 +901,23 @@ export default function EmployeesPage() {
               />
               <TextField
                 fullWidth
+                label="Ngày sinh"
+                type="date"
+                value={formData.dateOfBirth}
+                onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
+                InputLabelProps={{ shrink: true }}
+              />
+              <TextField
+                fullWidth
+                label="Địa chỉ"
+                multiline
+                rows={2}
+                sx={{ gridColumn: '1 / -1' }}
+                value={formData.address}
+                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+              />
+              <TextField
+                fullWidth
                 label="Ngày vào làm"
                 type="date"
                 value={formData.dateOfJoin}
@@ -833,6 +974,157 @@ export default function EmployeesPage() {
                   </MenuItem>
                 ))}
               </TextField>
+
+              {/* Toggle more info */}
+              <Box sx={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onClick={() => setMoreOpen((s) => !s)}
+                  endIcon={<ExpandMoreIcon sx={{ transform: moreOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 200ms' }} />}
+                >
+                  Thông tin bổ sung
+                </Button>
+                <Typography variant="body2" color="text.secondary">Hiển thị/ẩn các trường chi tiết (CCCD, thời gian, nơi đào tạo)</Typography>
+              </Box>
+
+              <Collapse in={moreOpen} sx={{ gridColumn: '1 / -1', width: '100%', mt: 1 }}>
+                <Grid container spacing={2}>
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label="Nơi đào tạo"
+                      value={formData.placeOfTraining}
+                      onChange={(e) => setFormData({ ...formData, placeOfTraining: e.target.value })}
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      select
+                      label="Giới tính"
+                      value={formData.gender}
+                      onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
+                    >
+                      <MenuItem value="">Chưa chọn</MenuItem>
+                      <MenuItem value="male">Nam</MenuItem>
+                      <MenuItem value="female">Nữ</MenuItem>
+                    </TextField>
+                  </Grid>
+
+                  <Grid item xs={12} sm={4}>
+                    <TextField
+                      fullWidth
+                      label="Số CCCD"
+                      value={formData.cccdNumber}
+                      onChange={(e) => setFormData({ ...formData, cccdNumber: e.target.value })}
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={4}>
+                    <TextField
+                      fullWidth
+                      label="Ngày cấp CCCD"
+                      type="date"
+                      value={formData.cccdIssuedDate}
+                      onChange={(e) => setFormData({ ...formData, cccdIssuedDate: e.target.value })}
+                      InputLabelProps={{ shrink: true }}
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={4}>
+                    <TextField
+                      fullWidth
+                      label="Nơi cấp CCCD"
+                      value={formData.cccdIssuedPlace}
+                      onChange={(e) => setFormData({ ...formData, cccdIssuedPlace: e.target.value })}
+                    />
+                  </Grid>
+
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label="Thời gian bắt đầu thực tập"
+                      type="date"
+                      value={formData.internshipStart}
+                      onChange={(e) => setFormData({ ...formData, internshipStart: e.target.value })}
+                      InputLabelProps={{ shrink: true }}
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label="Thời gian kết thúc thực tập"
+                      type="date"
+                      value={formData.internshipEnd}
+                      onChange={(e) => setFormData({ ...formData, internshipEnd: e.target.value })}
+                      InputLabelProps={{ shrink: true }}
+                    />
+                  </Grid>
+
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label="Thời gian bắt đầu học việc"
+                      type="date"
+                      value={formData.trainingStart}
+                      onChange={(e) => setFormData({ ...formData, trainingStart: e.target.value })}
+                      InputLabelProps={{ shrink: true }}
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label="Thời gian kết thúc học việc"
+                      type="date"
+                      value={formData.trainingEnd}
+                      onChange={(e) => setFormData({ ...formData, trainingEnd: e.target.value })}
+                      InputLabelProps={{ shrink: true }}
+                    />
+                  </Grid>
+
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label="Thời gian bắt đầu thử việc"
+                      type="date"
+                      value={formData.probationStart}
+                      onChange={(e) => setFormData({ ...formData, probationStart: e.target.value })}
+                      InputLabelProps={{ shrink: true }}
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label="Thời gian kết thúc thử việc"
+                      type="date"
+                      value={formData.probationEnd}
+                      onChange={(e) => setFormData({ ...formData, probationEnd: e.target.value })}
+                      InputLabelProps={{ shrink: true }}
+                    />
+                  </Grid>
+
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label="Thời gian bắt đầu chính thức"
+                      type="date"
+                      value={formData.officialStart}
+                      onChange={(e) => setFormData({ ...formData, officialStart: e.target.value })}
+                      InputLabelProps={{ shrink: true }}
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label="Thời gian kết thúc chính thức"
+                      type="date"
+                      value={formData.officialEnd}
+                      onChange={(e) => setFormData({ ...formData, officialEnd: e.target.value })}
+                      InputLabelProps={{ shrink: true }}
+                    />
+                  </Grid>
+                </Grid>
+              </Collapse>
+
               <TextField
                 fullWidth
                 select

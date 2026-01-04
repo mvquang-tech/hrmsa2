@@ -13,7 +13,8 @@
     "migrate-leaves-sessions": "node scripts/migrate-leaves-sessions.js",
     "migrate-leave-sessions-table": "node scripts/migrate-leave-sessions-table.js",
     "migrate-education-levels": "node scripts/apply-migration-education-levels.js",
-    "migrate-academic-titles": "node scripts/apply-migration-academic-titles.js"
+    "migrate-academic-titles": "node scripts/apply-migration-academic-titles.js",
+    "migrate-employee-extra-fields": "node scripts/apply-migration-employee-extra-fields.js"
   },
   "dependencies": {
     "next": "^14.0.4",

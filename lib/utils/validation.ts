@@ -37,6 +37,19 @@ export const employeeSchema = z.object({
   status: z.enum(['active', 'inactive', 'terminated']).optional(),
   educationLevelId: z.number().optional().nullable(),
   academicTitleId: z.number().optional().nullable(),
+  placeOfTraining: z.string().optional().nullable(),
+  gender: z.enum(['male', 'female']).optional().nullable(),
+  cccdNumber: z.string().optional().nullable(),
+  cccdIssuedDate: z.string().optional().nullable(),
+  cccdIssuedPlace: z.string().optional().nullable(),
+  internshipStart: z.string().optional().nullable(),
+  internshipEnd: z.string().optional().nullable(),
+  trainingStart: z.string().optional().nullable(),
+  trainingEnd: z.string().optional().nullable(),
+  probationStart: z.string().optional().nullable(),
+  probationEnd: z.string().optional().nullable(),
+  officialStart: z.string().optional().nullable(),
+  officialEnd: z.string().optional().nullable(),
 });
 
 // Overtime validation
