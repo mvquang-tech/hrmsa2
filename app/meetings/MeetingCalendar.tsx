@@ -113,7 +113,9 @@ export default function MeetingCalendar({
                 boxShadow: 0,
                 transition: 'transform 150ms ease, box-shadow 150ms ease',
                 '&:hover': { transform: 'translateY(-3px)', boxShadow: 3 },
-                minHeight: isSmall ? 84 : 96,
+                height: isSmall ? 84 : 96,
+                overflow: 'hidden',
+                minWidth: 0, // allow children to shrink and enable ellipsis in flex containers
                 display: 'flex',
                 flexDirection: 'column',
                 position: 'relative',
@@ -162,7 +164,7 @@ export default function MeetingCalendar({
                 </Box>
               </Box>
 
-              <Box mt={1} display="flex" flexDirection="column" gap={0.5}>
+              <Box mt={1} display="flex" flexDirection="column" gap={0.5} sx={{ minWidth: 0 }}>
                 {dayMeetings.slice(0, 2).map((m) => (
                   <Typography
                     key={m.id}
@@ -175,7 +177,9 @@ export default function MeetingCalendar({
                       textOverflow: 'ellipsis',
                       whiteSpace: 'nowrap',
                       display: 'block',
-                      maxWidth: '100%'
+                      maxWidth: '100%',
+                      minWidth: 0,
+                      width: '100%'
                     }}
                   >
                     {m.time ? `${m.time} ` : ''}{m.title}
