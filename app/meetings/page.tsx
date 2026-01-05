@@ -18,6 +18,7 @@ import {
   DialogContent,
   DialogActions,
   TextField,
+  Autocomplete,
   FormControlLabel,
   Switch,
   Chip,
@@ -116,6 +117,24 @@ export default function MeetingsPage() {
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [viewingMeeting, setViewingMeeting] = useState<Meeting | null>(null);
 
+  // Location suggestions loaded from server
+  const [locationOptions, setLocationOptions] = useState<string[]>([]);
+
+  const fetchLocations = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('/api/meetings/locations', {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      const json = await res.json();
+      if (json && json.success) {
+        setLocationOptions(Array.isArray(json.data) ? json.data : []);
+      }
+    } catch (e) {
+      // ignore
+    }
+  };
+
   // Calendar state
   const [currentMonth, setCurrentMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
   const [dayDialogOpen, setDayDialogOpen] = useState(false);
@@ -180,6 +199,7 @@ export default function MeetingsPage() {
   useEffect(() => {
     if (!authLoading && user) {
       fetchMeetings();
+      fetchLocations();
     }
   }, [authLoading, user]);
 
@@ -298,6 +318,8 @@ export default function MeetingsPage() {
         setSuccess(isEdit ? 'Đã cập nhật cuộc họp' : 'Đã tạo cuộc họp mới');
         handleCloseDialog();
         fetchMeetings();
+        // Refresh location suggestions from server
+        fetchLocations();
       } else {
         setError(data.error || 'Lỗi lưu cuộc họp');
       }
@@ -901,19 +923,28 @@ export default function MeetingsPage() {
                 </Select>
               </FormControl>
 
-              <TextField
-                fullWidth
-                label="Địa điểm"
-                placeholder="Phòng họp A, Zoom, Google Meet..."
+              <Autocomplete
+                freeSolo
+                options={locationOptions}
                 value={selectedMeeting.location || ''}
-                onChange={(e) => setSelectedMeeting({ ...selectedMeeting, location: e.target.value })}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <LocationIcon color="action" />
-                    </InputAdornment>
-                  ),
-                }}
+                onChange={(_, v) => setSelectedMeeting({ ...selectedMeeting, location: v || '' })}
+                onInputChange={(_, v) => setSelectedMeeting({ ...selectedMeeting, location: v })}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    fullWidth
+                    label="Địa điểm"
+                    placeholder="Phòng họp A, Zoom, Google Meet..."
+                    InputProps={{
+                      ...params.InputProps,
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <LocationIcon color="action" />
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                )}
               />
 
               <TextField
