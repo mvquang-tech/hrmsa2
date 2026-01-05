@@ -423,106 +423,194 @@ export default function MeetingsPage() {
     return meeting.createdBy === user.employeeId;
   };
 
-  // Render meeting table
-  const renderMeetingTable = (meetingList: Meeting[]) => (
-    <TableContainer>
-      <Table>
-        <TableHead>
-          <TableRow>
-            <TableCell>Tiêu đề</TableCell>
-            <TableCell>Ngày</TableCell>
-            <TableCell>Giờ</TableCell>
-            <TableCell>Thời lượng</TableCell>
-            <TableCell>Địa điểm</TableCell>
-            <TableCell>Nhắc nhở</TableCell>
-            <TableCell>Trạng thái</TableCell>
-            <TableCell align="right">Thao tác</TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {meetingList.length === 0 ? (
+  // Tìm kiếm và lọc
+  const [searchText, setSearchText] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
+
+  // Sắp xếp bảng
+  const [sortBy, setSortBy] = useState('date');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+
+  const handleSort = (column: string) => {
+    if (sortBy === column) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(column);
+      setSortOrder('asc');
+    }
+  };
+
+  const filteredMeetings = useMemo(() => {
+    let result = meetings.filter(m => {
+      const matchText = m.title.toLowerCase().includes(searchText.toLowerCase());
+      const status = getMeetingStatus(m).label;
+      const matchStatus = !filterStatus || status === filterStatus;
+      return matchText && matchStatus;
+    });
+
+    result = [...result].sort((a, b) => {
+      let aValue: any = a[sortBy];
+      let bValue: any = b[sortBy];
+      // Custom sort for status
+      if (sortBy === 'status') {
+        aValue = getMeetingStatus(a).label;
+        bValue = getMeetingStatus(b).label;
+      }
+      // Custom sort for date/time
+      if (sortBy === 'date') {
+        aValue = new Date(`${a.date}T${a.time}`);
+        bValue = new Date(`${b.date}T${b.time}`);
+      }
+      if (sortBy === 'duration' || sortBy === 'reminderMinutes') {
+        aValue = Number(aValue);
+        bValue = Number(bValue);
+      }
+      if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1;
+      if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1;
+      return 0;
+    });
+    return result;
+  }, [meetings, searchText, filterStatus, sortBy, sortOrder]);
+
+  const renderMeetingTable = (meetingList: Meeting[], showFilter = false) => (
+    <>
+      {showFilter && (
+        <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
+          <TextField
+            label="Tìm kiếm tiêu đề"
+            value={searchText}
+            onChange={e => setSearchText(e.target.value)}
+            size="small"
+            sx={{ minWidth: 220 }}
+          />
+          <FormControl size="small" sx={{ minWidth: 180 }}>
+            <InputLabel>Trạng thái</InputLabel>
+            <Select
+              label="Trạng thái"
+              value={filterStatus}
+              onChange={e => setFilterStatus(e.target.value)}
+            >
+              <MenuItem value="">Tất cả</MenuItem>
+              {STATUS_OPTIONS.map(opt => (
+                <MenuItem key={opt.value} value={opt.label}>{opt.label}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </Box>
+      )}
+      <TableContainer>
+        <Table>
+          <TableHead>
             <TableRow>
-              <TableCell colSpan={8} align="center">
-                <Typography color="text.secondary" sx={{ py: 4 }}>
-                  Không có cuộc họp nào
-                </Typography>
+              <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleSort('title')}>
+                Tiêu đề {sortBy === 'title' && (sortOrder === 'asc' ? '▲' : '▼')}
               </TableCell>
+              <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleSort('date')}>
+                Ngày {sortBy === 'date' && (sortOrder === 'asc' ? '▲' : '▼')}
+              </TableCell>
+              <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleSort('time')}>
+                Giờ {sortBy === 'time' && (sortOrder === 'asc' ? '▲' : '▼')}
+              </TableCell>
+              <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleSort('duration')}>
+                Thời lượng {sortBy === 'duration' && (sortOrder === 'asc' ? '▲' : '▼')}
+              </TableCell>
+              <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleSort('location')}>
+                Địa điểm {sortBy === 'location' && (sortOrder === 'asc' ? '▲' : '▼')}
+              </TableCell>
+              <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleSort('reminderMinutes')}>
+                Nhắc nhở {sortBy === 'reminderMinutes' && (sortOrder === 'asc' ? '▲' : '▼')}
+              </TableCell>
+              <TableCell sx={{ cursor: 'pointer' }} onClick={() => handleSort('status')}>
+                Trạng thái {sortBy === 'status' && (sortOrder === 'asc' ? '▲' : '▼')}
+              </TableCell>
+              <TableCell align="right">Thao tác</TableCell>
             </TableRow>
-          ) : (
-            meetingList.map((meeting) => {
-              const status = getMeetingStatus(meeting);
-              return (
-                <TableRow key={meeting.id} hover>
-                  <TableCell>
-                    <Box>
-                      <Typography
-                        fontWeight={500}
-                        sx={{ cursor: 'pointer', color: meeting.isRead ? 'text.secondary' : 'text.primary' }}
-                        onClick={() => handleViewMeeting(meeting)}
-                      >
-                        {meeting.title}
-                      </Typography>
-                      {meeting.attendees && (
-                        <Typography variant="caption" color="text.secondary">
-                          👥 {meeting.attendees}
+          </TableHead>
+          <TableBody>
+            {meetingList.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={8} align="center">
+                  <Typography color="text.secondary" sx={{ py: 4 }}>
+                    Không có cuộc họp nào
+                  </Typography>
+                </TableCell>
+              </TableRow>
+            ) : (
+              meetingList.map((meeting) => {
+                const status = getMeetingStatus(meeting);
+                return (
+                  <TableRow key={meeting.id} hover>
+                    <TableCell>
+                      <Box>
+                        <Typography
+                          fontWeight={500}
+                          sx={{ cursor: 'pointer', color: meeting.isRead ? 'text.secondary' : 'text.primary' }}
+                          onClick={() => handleViewMeeting(meeting)}
+                        >
+                          {meeting.title}
                         </Typography>
+                        {meeting.attendees && (
+                          <Typography variant="caption" color="text.secondary">
+                            👥 {meeting.attendees}
+                          </Typography>
+                        )}
+                      </Box>
+                    </TableCell>
+                    <TableCell>{formatDate(meeting.date)}</TableCell>
+                    <TableCell>{meeting.time}</TableCell>
+                    <TableCell>{meeting.duration} phút</TableCell>
+                    <TableCell>{meeting.location || '-'}</TableCell>
+                    <TableCell>
+                      {meeting.reminderEnabled ? (
+                        <Chip 
+                          size="small" 
+                          icon={<NotificationIcon />}
+                          label={`${meeting.reminderMinutes} phút`}
+                          color={meeting.reminderSent ? 'default' : 'primary'}
+                          variant={meeting.reminderSent ? 'outlined' : 'filled'}
+                        />
+                      ) : (
+                        <Typography variant="caption" color="text.secondary">Tắt</Typography>
                       )}
-                    </Box>
-                  </TableCell>
-                  <TableCell>{formatDate(meeting.date)}</TableCell>
-                  <TableCell>{meeting.time}</TableCell>
-                  <TableCell>{meeting.duration} phút</TableCell>
-                  <TableCell>{meeting.location || '-'}</TableCell>
-                  <TableCell>
-                    {meeting.reminderEnabled ? (
+                    </TableCell>
+                    <TableCell>
                       <Chip 
                         size="small" 
-                        icon={<NotificationIcon />}
-                        label={`${meeting.reminderMinutes} phút`}
-                        color={meeting.reminderSent ? 'default' : 'primary'}
-                        variant={meeting.reminderSent ? 'outlined' : 'filled'}
+                        label={status.label} 
+                        color={status.color}
                       />
-                    ) : (
-                      <Typography variant="caption" color="text.secondary">Tắt</Typography>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Chip 
-                      size="small" 
-                      label={status.label} 
-                      color={status.color}
-                    />
-                  </TableCell>
-                  <TableCell align="right">
-                    {canEditMeeting(meeting) && (
-                      <>
-                        <Tooltip title="Sửa">
-                          <IconButton size="small" onClick={() => handleOpenDialog(meeting)}>
-                            <EditIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Xóa">
-                          <IconButton 
-                            size="small" 
-                            color="error"
-                            onClick={() => {
-                              setSelectedMeeting(meeting);
-                              setDeleteDialogOpen(true);
-                            }}
-                          >
-                            <DeleteIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                      </>
-                    )}
-                  </TableCell>
-                </TableRow>
-              );
-            })
-          )}
-        </TableBody>
-      </Table>
-    </TableContainer>
+                    </TableCell>
+                    <TableCell align="right">
+                      {canEditMeeting(meeting) && (
+                        <>
+                          <Tooltip title="Sửa">
+                            <IconButton size="small" onClick={() => handleOpenDialog(meeting)}>
+                              <EditIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Xóa">
+                            <IconButton 
+                              size="small" 
+                              color="error"
+                              onClick={() => {
+                                setSelectedMeeting(meeting);
+                                setDeleteDialogOpen(true);
+                              }}
+                            >
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        </>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                );
+              })
+            )}
+          </TableBody>
+        </Table>
+      </TableContainer>
+    </>
   );
 
 
@@ -628,20 +716,17 @@ export default function MeetingsPage() {
         {/* Tabs */}
         <Paper sx={{ mb: 3 }}>
           <Tabs value={tabValue} onChange={(_, v) => setTabValue(v)}>
-            <Tab icon={<CalendarIcon />} label={`Sắp tới (${upcomingMeetings.length})`} iconPosition="start" />
-            <Tab icon={<TimeIcon />} label={`Đang họp (${ongoingMeetings.length})`} iconPosition="start" />
+            <Tab icon={<CalendarIcon />} label={`Tất cả (${meetings.length})`} iconPosition="start" />
             <Tab icon={<TodayIcon />} label={`Hôm nay (${todayMeetings.length})`} iconPosition="start" />
             <Tab icon={<CalendarMonthIcon />} label="Lịch" iconPosition="start" />
-            <Tab icon={<EventIcon />} label={`Đã kết thúc (${finishedOrUnknownMeetings.length})`} iconPosition="start" />
           </Tabs>
         </Paper>
 
         {/* Tab Content */}
         <Paper>
-          {tabValue === 0 && renderMeetingTable(upcomingMeetings)}
-          {tabValue === 1 && renderMeetingTable(ongoingMeetings)}
-          {tabValue === 2 && renderMeetingTable(todayMeetings)}
-          {tabValue === 3 && (
+          {tabValue === 0 && renderMeetingTable(filteredMeetings, true)}
+          {tabValue === 1 && renderMeetingTable(todayMeetings)}
+          {tabValue === 2 && (
             <MeetingCalendar
               monthDate={currentMonth}
               onPrevMonth={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1))}
@@ -662,7 +747,6 @@ export default function MeetingsPage() {
               meetings={meetings.map(m => ({ id: m.id, title: m.title, date: m.date, time: m.time, isRead: m.isRead }))}
             />
           )}
-          {tabValue === 4 && renderMeetingTable(finishedOrUnknownMeetings)}
         </Paper>
         </Container>
 
