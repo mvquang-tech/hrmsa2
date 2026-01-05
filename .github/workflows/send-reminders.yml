@@ -3,7 +3,7 @@ name: Send Meeting Reminders
 on:
   schedule:
     # every 5 minutes
-    - cron: '*/5 * * * *'
+    - cron: '*/6000 * * * *'
   workflow_dispatch: {}
 
 jobs:
