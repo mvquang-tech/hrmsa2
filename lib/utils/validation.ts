@@ -18,7 +18,9 @@ export const departmentSchema = z.object({
   name: z.string().min(2, 'Tên phòng ban ít nhất 2 ký tự'),
   code: z.string().min(2, 'Mã phòng ban ít nhất 2 ký tự'),
   description: z.string().optional(),
+  // support multiple managers (array of employee IDs). Keep single managerId for backward compatibility.
   managerId: z.number().optional(),
+  managerIds: z.array(z.number()).optional(),
 });
 
 // Employee validation

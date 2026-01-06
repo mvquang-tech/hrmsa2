@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { overtimeSchema, idSchema, overtimeBatchSchema } from '@/lib/utils/validation';
-import { createErrorResponse, createSuccessResponse, requireAuth } from '@/lib/middleware/auth';
+import { createErrorResponse, createSuccessResponse, requireAuth, isManagerOfEmployee } from '@/lib/middleware/auth';
 import { UserRole } from '@/lib/types';
 import { formatDate } from '@/lib/utils/db-helpers';
 
@@ -140,7 +140,15 @@ export async function PUT(
         await query('INSERT INTO overtime_slots (dayId, start_time, end_time, seconds) VALUES (?, ?, ?, ?)', [dayRes.insertId, '00:00:00', endTimeStr, seconds]);
       }
     } else {
-      // Managers/HR/Admin can approve/reject
+      // Managers/HR/Admin can approve/reject or update on behalf of employee
+      if (user.role === UserRole.MANAGER) {
+        // Manager must be manager of the employee's department
+        const mgrAllowed = await isManagerOfEmployee(user.employeeId, existingOt.employeeId);
+        if (!mgrAllowed) {
+          return createErrorResponse('Không có quyền duyệt', 403);
+        }
+      }
+
       if (body.status && ['approved', 'rejected'].includes(body.status)) {
         await query(
           'UPDATE overtime SET status = ?, approvedBy = ?, approvedAt = NOW() WHERE id = ?',

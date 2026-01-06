@@ -22,7 +22,9 @@ import {
   DialogActions,
   TextField,
   Alert,
+  Chip,
 } from '@mui/material';
+import Autocomplete from '@mui/material/Autocomplete';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -33,6 +35,7 @@ interface Department {
   code: string;
   description?: string;
   managerId?: number;
+  managers?: Array<{ id: number; firstName: string; lastName: string; code?: string }>;
 }
 
 export default function DepartmentsPage() {
@@ -41,7 +44,9 @@ export default function DepartmentsPage() {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Department | null>(null);
-  const [formData, setFormData] = useState({ name: '', code: '', description: '' });
+  const [employees, setEmployees] = useState<any[]>([]);
+  const [employeesLoading, setEmployeesLoading] = useState(false);
+  const [formData, setFormData] = useState({ name: '', code: '', description: '', managerIds: [] as number[] });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -63,6 +68,7 @@ export default function DepartmentsPage() {
     // Fetch data if authenticated
     if (token) {
       fetchDepartments();
+      fetchEmployees();
     }
   }, [isAuthenticated, token, isLoading, router]);
 
@@ -96,13 +102,45 @@ export default function DepartmentsPage() {
     }
   };
 
+  const fetchEmployees = async () => {
+    if (!token) return;
+    setEmployeesLoading(true);
+    try {
+      // fetch many employees for manager selection
+      const response = await fetch('/api/employees?limit=1000', { headers: { Authorization: `Bearer ${token}` } });
+      const data = await response.json();
+      console.log('fetchEmployees response:', data);
+      if (data.success && data.data && Array.isArray(data.data.data)) {
+        setEmployees(data.data.data);
+        console.log('Loaded employees count:', data.data.data.length);
+      } else if (data.success && Array.isArray(data.data)) {
+        setEmployees(data.data);
+        console.log('Loaded employees count:', data.data.length);
+      } else {
+        console.warn('No employees data in response');
+        setEmployees([]);
+      }
+    } catch (err) {
+      console.error('Error fetching employees:', err);
+      setEmployees([]);
+    } finally {
+      setEmployeesLoading(false);
+    }
+  };
+
+
   const handleOpen = (dept?: Department) => {
     if (dept) {
       setEditing(dept);
-      setFormData({ name: dept.name, code: dept.code, description: dept.description || '' });
+      setFormData({
+        name: dept.name,
+        code: dept.code,
+        description: dept.description || '',
+        managerIds: (dept.managers || []).map(m => m.id),
+      });
     } else {
       setEditing(null);
-      setFormData({ name: '', code: '', description: '' });
+      setFormData({ name: '', code: '', description: '', managerIds: [] });
     }
     setOpen(true);
     setError('');
@@ -111,7 +149,7 @@ export default function DepartmentsPage() {
   const handleClose = () => {
     setOpen(false);
     setEditing(null);
-    setFormData({ name: '', code: '', description: '' });
+    setFormData({ name: '', code: '', description: '', managerIds: [] });
     setError('');
   };
 
@@ -177,10 +215,11 @@ export default function DepartmentsPage() {
 
         <TableContainer component={Paper}>
           <Table>
-            <TableHead>
+                    <TableHead>
               <TableRow>
                 <TableCell>Mã</TableCell>
                 <TableCell>Tên</TableCell>
+                <TableCell>Người quản lý</TableCell>
                 <TableCell>Mô tả</TableCell>
                 <TableCell align="right">Thao tác</TableCell>
               </TableRow>
@@ -199,6 +238,7 @@ export default function DepartmentsPage() {
                   <TableRow key={dept.id}>
                     <TableCell>{dept.code}</TableCell>
                     <TableCell>{dept.name}</TableCell>
+                    <TableCell>{(dept.managers || []).length === 0 ? '-' : (dept.managers || []).map(m => `${m.firstName} ${m.lastName}`).join(', ')}</TableCell>
                     <TableCell>{dept.description || '-'}</TableCell>
                     <TableCell align="right">
                       {canUpdate && (
@@ -251,6 +291,31 @@ export default function DepartmentsPage() {
               margin="normal"
               multiline
               rows={3}
+            />
+
+            <Autocomplete
+              multiple
+              options={employees}
+              loading={employeesLoading}
+              loadingText="Đang tải..."
+              noOptionsText="Không có dữ liệu"
+              getOptionLabel={(opt: any) => `${opt.firstName || ''} ${opt.lastName || ''} (${opt.code || ''})`}
+              isOptionEqualToValue={(option: any, value: any) => Number(option.id) === Number(value.id)}
+              value={employees.filter(e => (formData.managerIds || []).includes(Number(e.id)))}
+              onChange={(event, value) => setFormData({ ...formData, managerIds: value.map((v: any) => Number(v.id)) })}
+              renderTags={(value: any[], getTagProps) =>
+                value.map((option: any, index: number) => (
+                  <Chip label={`${option.firstName || ''} ${option.lastName || ''}`} {...getTagProps({ index })} key={option.id} />
+                ))
+              }
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Người quản lý"
+                  placeholder="Chọn người quản lý"
+                  margin="normal"
+                />
+              )}
             />
           </DialogContent>
           <DialogActions>

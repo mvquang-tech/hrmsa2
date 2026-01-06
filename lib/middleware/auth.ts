@@ -104,6 +104,30 @@ export async function checkPermission(user: JWTPayload, permissionCode: string):
 }
 
 /**
+ * Check if a given employeeId is a manager for the department of another employee (employeeId)
+ * @param managerEmployeeId - employee.id of the manager user
+ * @param employeeId - employee.id of the target employee
+ */
+export async function isManagerOfEmployee(managerEmployeeId: number | null | undefined, employeeId: number): Promise<boolean> {
+  if (!managerEmployeeId) return false;
+  const rows = await query(
+    `SELECT COUNT(*) as cnt FROM department_managers dm
+     INNER JOIN employees e ON e.departmentId = dm.departmentId
+     WHERE dm.employeeId = ? AND e.id = ?`,
+    [managerEmployeeId, employeeId]
+  );
+  const list = Array.isArray(rows) ? rows : [rows];
+  return list[0]?.cnt > 0;
+}
+
+export async function isManagerOfDepartment(managerEmployeeId: number | null | undefined, departmentId: number): Promise<boolean> {
+  if (!managerEmployeeId) return false;
+  const rows = await query('SELECT COUNT(*) as cnt FROM department_managers WHERE departmentId = ? AND employeeId = ?', [departmentId, managerEmployeeId]);
+  const list = Array.isArray(rows) ? rows : [rows];
+  return list[0]?.cnt > 0;
+}
+
+/**
  * Get authenticated user info from request (token -> DB lookup)
  */
 export async function getAuthUser(request: NextRequest): Promise<any | null> {

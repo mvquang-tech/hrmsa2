@@ -8,15 +8,23 @@ import { formatDate } from '@/lib/utils/db-helpers';
 
 export async function GET(request: NextRequest) {
   try {
-    requireAuth(request);
+    const user = requireAuth(request);
     const { searchParams } = new URL(request.url);
     const params = paginationSchema.parse(Object.fromEntries(searchParams));
 
     const result = await paginate<Employee>('employees', params);
-    
+
+    // If manager, restrict to employees in departments they manage
+    let filteredData = result.data;
+    if (user.role === UserRole.MANAGER) {
+      const mgrDeptRows = await query('SELECT departmentId FROM department_managers WHERE employeeId = ?', [user.employeeId]);
+      const deptIds = (Array.isArray(mgrDeptRows) ? mgrDeptRows : []).map((r: any) => r.departmentId);
+      filteredData = (result.data || []).filter((emp: any) => deptIds.includes(emp.departmentId));
+    }
+
     // Add hasAccount flag for each employee
     const employeesWithAccountInfo = await Promise.all(
-      result.data.map(async (emp: any) => {
+      filteredData.map(async (emp: any) => {
         const users = await query('SELECT id FROM users WHERE employeeId = ?', [emp.id]);
         return {
           ...emp,

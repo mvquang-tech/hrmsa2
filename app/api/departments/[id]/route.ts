@@ -19,7 +19,12 @@ export async function GET(
       return createErrorResponse('Không tìm thấy phòng ban', 404);
     }
 
-    return createSuccessResponse(deptList[0]);
+    // Attach managers
+    const mgrRows = await query('SELECT e.id, e.code, e.firstName, e.lastName FROM department_managers dm INNER JOIN employees e ON e.id = dm.employeeId WHERE dm.departmentId = ?', [id]);
+    const dept = deptList[0];
+    dept.managers = Array.isArray(mgrRows) ? mgrRows : [];
+
+    return createSuccessResponse(dept);
   } catch (error: any) {
     if (error.message === 'Unauthorized') {
       return createErrorResponse('Unauthorized', 401);
@@ -56,14 +61,34 @@ export async function PUT(
       return createErrorResponse('Mã phòng ban đã tồn tại', 400);
     }
 
+    // Update department basic fields (managerId kept for backward compat - set to first manager if present)
+    const primaryManager = Array.isArray(validated.managerIds) && validated.managerIds.length > 0 ? validated.managerIds[0] : (validated.managerId || null);
+
     await query(
       'UPDATE departments SET name = ?, code = ?, description = ?, managerId = ? WHERE id = ?',
-      [validated.name, validated.code, validated.description || null, validated.managerId || null, id]
+      [validated.name, validated.code, validated.description || null, primaryManager, id]
     );
+
+    // Update department_managers mapping
+    await query('DELETE FROM department_managers WHERE departmentId = ?', [id]);
+    if (Array.isArray(validated.managerIds) && validated.managerIds.length > 0) {
+      const inserts: Array<[number, number]> = [];
+      validated.managerIds.forEach((mid: number) => {
+        inserts.push([id, mid]);
+      });
+      if (inserts.length > 0) {
+        await query('INSERT IGNORE INTO department_managers (departmentId, employeeId) VALUES ?', [inserts]);
+      }
+    } else if (validated.managerId) {
+      await query('INSERT IGNORE INTO department_managers (departmentId, employeeId) VALUES (?, ?)', [id, validated.managerId]);
+    }
 
     const updated = await query('SELECT * FROM departments WHERE id = ?', [id]);
     const updatedList = Array.isArray(updated) ? updated : [updated];
-    return createSuccessResponse(updatedList[0], 'Cập nhật phòng ban thành công');
+    const dept = updatedList[0];
+    const mgrRows = await query('SELECT e.id, e.code, e.firstName, e.lastName FROM department_managers dm INNER JOIN employees e ON e.id = dm.employeeId WHERE dm.departmentId = ?', [id]);
+    dept.managers = Array.isArray(mgrRows) ? mgrRows : [];
+    return createSuccessResponse(dept, 'Cập nhật phòng ban thành công');
   } catch (error: any) {
     if (error.message === 'Unauthorized') {
       return createErrorResponse('Unauthorized', 401);

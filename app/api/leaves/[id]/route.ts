@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { leaveSchema, idSchema } from '@/lib/utils/validation';
-import { createErrorResponse, createSuccessResponse, requireAuth } from '@/lib/middleware/auth';
+import { createErrorResponse, createSuccessResponse, requireAuth, isManagerOfEmployee } from '@/lib/middleware/auth';
 import { UserRole, LeaveSessions } from '@/lib/types';
 import { formatDate } from '@/lib/utils/db-helpers';
 import { calculateDaysFromSessions, normalizeSessions, normalizeDate } from '@/lib/utils/leave-helpers';
@@ -142,6 +142,13 @@ export async function PUT(
       }
     } else {
       // Managers/HR/Admin can approve/reject
+      if (user.role === UserRole.MANAGER) {
+        const mgrAllowed = await isManagerOfEmployee(user.employeeId, existingLeave.employeeId);
+        if (!mgrAllowed) {
+          return createErrorResponse('Không có quyền duyệt', 403);
+        }
+      }
+
       if (body.status && ['approved', 'rejected'].includes(body.status)) {
         await query(
           'UPDATE leaves SET status = ?, approvedBy = ?, approvedAt = NOW() WHERE id = ?',

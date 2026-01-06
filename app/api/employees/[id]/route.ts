@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { employeeSchema, idSchema } from '@/lib/utils/validation';
-import { createErrorResponse, createSuccessResponse, requireAuth, requireRole } from '@/lib/middleware/auth';
+import { createErrorResponse, createSuccessResponse, requireAuth, requireRole, isManagerOfEmployee } from '@/lib/middleware/auth';
 import { formatDate } from '@/lib/utils/db-helpers';
 import { UserRole } from '@/lib/types';
 
@@ -10,7 +10,7 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    requireAuth(request);
+    const user = requireAuth(request);
     const { id } = idSchema.parse({ id: params.id });
 
     const employees = await query('SELECT * FROM employees WHERE id = ?', [id]);
@@ -20,7 +20,20 @@ export async function GET(
       return createErrorResponse('Không tìm thấy nhân viên', 404);
     }
 
-    return createSuccessResponse(empList[0]);
+    const emp = empList[0] as any;
+
+    // Employees can only see their own
+    if (user.role === UserRole.EMPLOYEE && user.employeeId !== emp.id) {
+      return createErrorResponse('Không có quyền truy cập', 403);
+    }
+
+    // Managers can only view employees in departments they manage
+    if (user.role === UserRole.MANAGER) {
+      const allowed = await isManagerOfEmployee(user.employeeId, emp.id);
+      if (!allowed) return createErrorResponse('Không có quyền truy cập', 403);
+    }
+
+    return createSuccessResponse(emp);
   } catch (error: any) {
     if (error.message === 'Unauthorized') {
       return createErrorResponse('Unauthorized', 401);

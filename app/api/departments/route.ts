@@ -12,6 +12,20 @@ export async function GET(request: NextRequest) {
     const params = paginationSchema.parse(Object.fromEntries(searchParams));
 
     const result = await paginate<Department>('departments', params);
+
+    // Attach managers for each department
+    const deptIds = (result.data || []).map((d: any) => d.id);
+    if (deptIds.length > 0) {
+      const mgrRows = await query('SELECT dm.departmentId, e.id, e.code, e.firstName, e.lastName FROM department_managers dm INNER JOIN employees e ON e.id = dm.employeeId WHERE dm.departmentId IN (?)', [deptIds]);
+      const mgrMap = new Map<number, any[]>();
+      (Array.isArray(mgrRows) ? mgrRows : []).forEach((r: any) => {
+        const arr = mgrMap.get(r.departmentId) || [];
+        arr.push({ id: r.id, code: r.code, firstName: r.firstName, lastName: r.lastName });
+        mgrMap.set(r.departmentId, arr);
+      });
+      result.data = result.data.map((d: any) => ({ ...d, managers: mgrMap.get(d.id) || [] }));
+    }
+
     return createSuccessResponse(result);
   } catch (error: any) {
     if (error.message === 'Unauthorized') {
@@ -36,14 +50,34 @@ export async function POST(request: NextRequest) {
       return createErrorResponse('Mã phòng ban đã tồn tại', 400);
     }
 
+    // Insert department (leave managerId for backward compat; we will set it to first manager if provided)
+    const primaryManager = Array.isArray(validated.managerIds) && validated.managerIds.length > 0 ? validated.managerIds[0] : (validated.managerId || null);
+
     const result = await query(
       'INSERT INTO departments (name, code, description, managerId) VALUES (?, ?, ?, ?)',
-      [validated.name, validated.code, validated.description || null, validated.managerId || null]
+      [validated.name, validated.code, validated.description || null, primaryManager]
     ) as any;
 
-    const newDept = await query('SELECT * FROM departments WHERE id = ?', [result.insertId]);
+    const newDeptId = result.insertId;
+
+    // Insert many-to-many manager mappings if provided
+    if (Array.isArray(validated.managerIds) && validated.managerIds.length > 0) {
+      const inserts: Array<[number, number]> = [];
+      validated.managerIds.forEach((mid: number) => {
+        inserts.push([newDeptId, mid]);
+      });
+      await query('INSERT IGNORE INTO department_managers (departmentId, employeeId) VALUES ?', [inserts]);
+    } else if (validated.managerId) {
+      await query('INSERT IGNORE INTO department_managers (departmentId, employeeId) VALUES (?, ?)', [newDeptId, validated.managerId]);
+    }
+
+    const newDept = await query('SELECT * FROM departments WHERE id = ?', [newDeptId]);
     const deptList = Array.isArray(newDept) ? newDept : [newDept];
-    return createSuccessResponse(deptList[0] || newDept, 'Tạo phòng ban thành công');
+    // Attach managers to response
+    const mgrRows = await query('SELECT e.id, e.code, e.firstName, e.lastName FROM department_managers dm INNER JOIN employees e ON e.id = dm.employeeId WHERE dm.departmentId = ?', [newDeptId]);
+    const dept = (deptList[0] || newDept);
+    dept.managers = Array.isArray(mgrRows) ? mgrRows : [];
+    return createSuccessResponse(dept, 'Tạo phòng ban thành công');
   } catch (error: any) {
     if (error.message === 'Unauthorized') {
       return createErrorResponse('Unauthorized', 401);
