@@ -17,9 +17,15 @@ export async function GET(request: NextRequest) {
     // If manager, restrict to employees in departments they manage
     let filteredData = result.data;
     if (user.role === UserRole.MANAGER) {
-      const mgrDeptRows = await query('SELECT departmentId FROM department_managers WHERE employeeId = ?', [user.employeeId]);
-      const deptIds = (Array.isArray(mgrDeptRows) ? mgrDeptRows : []).map((r: any) => r.departmentId);
-      filteredData = (result.data || []).filter((emp: any) => deptIds.includes(emp.departmentId));
+      try {
+        const mgrDeptRows = await query('SELECT departmentId FROM department_managers WHERE employeeId = ?', [user.employeeId]);
+        const deptIds = (Array.isArray(mgrDeptRows) ? mgrDeptRows : []).map((r: any) => r.departmentId);
+        filteredData = (result.data || []).filter((emp: any) => deptIds.includes(emp.departmentId));
+      } catch (err) {
+        console.error('Error filtering employees for manager:', err);
+        // fallback to empty list to avoid exposing data until fixed
+        filteredData = [];
+      }
     }
 
     // Add hasAccount flag for each employee
@@ -55,7 +61,7 @@ export async function GET(request: NextRequest) {
     if (error.message === 'Unauthorized') {
       return createErrorResponse('Unauthorized', 401);
     }
-    console.error('Error in GET /api/employees:', error);
+    console.error('Error in GET /api/employees:', error, error.stack);
     return createErrorResponse(error.message || 'Lỗi lấy danh sách nhân viên', 500);
   }
 }
