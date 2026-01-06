@@ -11,6 +11,7 @@ export async function GET(request: NextRequest) {
     const user = requireAuth(request);
     const { searchParams } = new URL(request.url);
     const params = paginationSchema.parse(Object.fromEntries(searchParams));
+    console.log('GET /api/employees params:', params);
 
     const result = await paginate<Employee>('employees', params);
 
