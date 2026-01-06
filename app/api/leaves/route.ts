@@ -19,6 +19,19 @@ export async function GET(request: NextRequest) {
     if (user.role === UserRole.EMPLOYEE && user.employeeId) {
       whereClause = 'employeeId = ?';
       whereParams = [user.employeeId];
+    } else if (user.role === UserRole.MANAGER && user.employeeId) {
+      // Managers can see leaves for employees in departments they manage
+      const mgrDeptRows = await query('SELECT departmentId FROM department_managers WHERE employeeId = ?', [user.employeeId]);
+      const deptIds = (Array.isArray(mgrDeptRows) ? mgrDeptRows : []).map((r: any) => r.departmentId);
+      if (deptIds.length === 0) {
+        // No managed departments -> return empty result
+        whereClause = '1 = 0';
+        whereParams = [];
+      } else {
+        // employeeId in employees of these departments
+        whereClause = 'employeeId IN (SELECT id FROM employees WHERE departmentId IN (?))';
+        whereParams = [deptIds];
+      }
     }
 
     const result = await paginate<Leave>('leaves', params, whereClause, whereParams);
