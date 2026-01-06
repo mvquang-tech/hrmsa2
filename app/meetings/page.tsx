@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useDeferredValue, startTransition } from 'react';
 import {
   Box,
   Paper,
@@ -58,6 +58,7 @@ import Layout from '@/components/Layout';
 import MeetingDetailDialog from './MeetingDetailDialog';
 import MeetingCalendar from './MeetingCalendar';
 import { useAuth } from '@/hooks/useAuth';
+import useComposition from '@/hooks/useComposition';
 
 interface Meeting {
   id: number;
@@ -143,6 +144,14 @@ export default function MeetingsPage() {
 
   // Tab state
   const [tabValue, setTabValue] = useState(0);
+
+  // Composition handling for IME
+  const { composingRef, onCompositionStart, onCompositionEnd } = useComposition();
+
+  // Search input local state to avoid updating global filter during composition
+  const [searchInput, setSearchInput] = useState('');
+  const [searchText, setSearchText] = useState('');
+  const deferredSearchText = useDeferredValue(searchText);
 
   // Fetch meetings
   const fetchMeetings = async () => {
@@ -446,8 +455,18 @@ export default function MeetingsPage() {
   };
 
   // Tìm kiếm và lọc
-  const [searchText, setSearchText] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
+
+  // keep input local to avoid updating filter while composing
+  useEffect(() => {
+    setSearchInput('');
+    setSearchText('');
+  }, []);
+
+  useEffect(() => {
+    // sync input with applied search text when it changes
+    setSearchInput(searchText);
+  }, [searchText]);
 
   // Sắp xếp bảng
   const [sortBy, setSortBy] = useState('date');
@@ -464,15 +483,16 @@ export default function MeetingsPage() {
 
   const filteredMeetings = useMemo(() => {
     let result = meetings.filter(m => {
-      const matchText = m.title.toLowerCase().includes(searchText.toLowerCase());
+      const q = (deferredSearchText || '').toLowerCase();
+      const matchText = m.title.toLowerCase().includes(q);
       const status = getMeetingStatus(m).label;
       const matchStatus = !filterStatus || status === filterStatus;
       return matchText && matchStatus;
     });
 
     result = [...result].sort((a, b) => {
-      let aValue: any = a[sortBy];
-      let bValue: any = b[sortBy];
+      let aValue: any = (a as any)[sortBy];
+      let bValue: any = (b as any)[sortBy];
       // Custom sort for status
       if (sortBy === 'status') {
         aValue = getMeetingStatus(a).label;
@@ -492,7 +512,7 @@ export default function MeetingsPage() {
       return 0;
     });
     return result;
-  }, [meetings, searchText, filterStatus, sortBy, sortOrder]);
+  }, [meetings, deferredSearchText, filterStatus, sortBy, sortOrder]);
 
   const renderMeetingTable = (meetingList: Meeting[], showFilter = false) => (
     <>
@@ -500,8 +520,16 @@ export default function MeetingsPage() {
         <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
           <TextField
             label="Tìm kiếm tiêu đề"
-            value={searchText}
-            onChange={e => setSearchText(e.target.value)}
+            value={searchInput}
+            onChange={e => {
+              const v = e.target.value;
+              setSearchInput(v);
+              if (!composingRef.current) {
+                startTransition(() => setSearchText(v));
+              }
+            }}
+            onCompositionStart={onCompositionStart}
+            onCompositionEnd={(e) => onCompositionEnd(e, (v) => startTransition(() => setSearchText(v)))}
             size="small"
             sx={{ minWidth: 220 }}
           />
@@ -867,6 +895,8 @@ export default function MeetingsPage() {
                 label="Tiêu đề cuộc họp *"
                 value={selectedMeeting.title || ''}
                 onChange={(e) => setSelectedMeeting({ ...selectedMeeting, title: e.target.value })}
+                onCompositionStart={onCompositionStart}
+                onCompositionEnd={(e) => onCompositionEnd(e, (v) => setSelectedMeeting({ ...selectedMeeting, title: v }))}
               />
               
               <Grid container spacing={2}>
@@ -935,6 +965,8 @@ export default function MeetingsPage() {
                     fullWidth
                     label="Địa điểm"
                     placeholder="Phòng họp A, Zoom, Google Meet..."
+                    onCompositionStart={onCompositionStart}
+                    onCompositionEnd={(e) => onCompositionEnd(e, (v) => setSelectedMeeting({ ...selectedMeeting, location: v }))}
                     InputProps={{
                       ...params.InputProps,
                       startAdornment: (
@@ -953,6 +985,8 @@ export default function MeetingsPage() {
                 placeholder="Nguyễn Văn A, Trần Thị B..."
                 value={selectedMeeting.attendees || ''}
                 onChange={(e) => setSelectedMeeting({ ...selectedMeeting, attendees: e.target.value })}
+                onCompositionStart={onCompositionStart}
+                onCompositionEnd={(e) => onCompositionEnd(e, (v) => setSelectedMeeting({ ...selectedMeeting, attendees: v }))}
                 InputProps={{
                   startAdornment: (
                     <InputAdornment position="start">
@@ -970,6 +1004,8 @@ export default function MeetingsPage() {
                 placeholder="Nội dung cuộc họp, agenda..."
                 value={selectedMeeting.notes || ''}
                 onChange={(e) => setSelectedMeeting({ ...selectedMeeting, notes: e.target.value })}
+                onCompositionStart={onCompositionStart}
+                onCompositionEnd={(e) => onCompositionEnd(e, (v) => setSelectedMeeting({ ...selectedMeeting, notes: v }))}
               />
 
               <Divider />

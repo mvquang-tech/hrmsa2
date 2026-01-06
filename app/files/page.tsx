@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef, startTransition } from 'react';
+import { useEffect, useState, useRef, startTransition, useDeferredValue } from 'react';
 import Layout from '@/components/Layout';
 import { useAuth } from '@/hooks/useAuth';
 import {
@@ -46,11 +46,20 @@ import FilterListIcon from '@mui/icons-material/FilterList';
 import ViewColumnIcon from '@mui/icons-material/ViewColumn';
 import SearchIcon from '@mui/icons-material/Search';
 import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
+import useComposition from '@/hooks/useComposition';
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 
 export default function FilesPage() {
   const { isAuthenticated, token, hasPermission } = useAuth();
   const [files, setFiles] = useState<any[]>([]);
+
+  // IME composition handling
+  const { composingRef, onCompositionStart, onCompositionEnd } = useComposition();
+
+  // Search input with local input state to avoid updating filter during IME composition
+  const [searchInput, setSearchInput] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const deferredSearchTerm = useDeferredValue(searchTerm);
   const [loading, setLoading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewMime, setPreviewMime] = useState<string | null>(null);
@@ -319,8 +328,8 @@ export default function FilesPage() {
 
   // Filtered files (client-side)
   const filteredFiles = files.filter((f) => {
-    if (searchTerm) {
-      const s = searchTerm.toLowerCase();
+    const s = (deferredSearchTerm || '').toLowerCase();
+    if (s) {
       const matches = (f.originalName || '').toLowerCase().includes(s) || (f.description || '').toLowerCase().includes(s) || (f.notes || '').toLowerCase().includes(s);
       if (!matches) return false;
     }
@@ -606,6 +615,11 @@ export default function FilesPage() {
     }
   };
 
+  // sync local input when applied searchTerm changes
+  useEffect(() => {
+    setSearchInput(searchTerm);
+  }, [searchTerm]);
+
   if (!isAuthenticated) return null;
 
   return (
@@ -617,8 +631,14 @@ export default function FilesPage() {
             <TextField
               size="small"
               placeholder="Tìm theo tên, mô tả, ghi chú..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              value={searchInput}
+              onChange={(e) => {
+                const v = e.target.value;
+                setSearchInput(v);
+                if (!composingRef.current) startTransition(() => setSearchTerm(v));
+              }}
+              onCompositionStart={onCompositionStart}
+              onCompositionEnd={(e) => onCompositionEnd(e, (v) => startTransition(() => setSearchTerm(v)))}
               InputProps={{ startAdornment: (<InputAdornment position="start"><SearchIcon /></InputAdornment>) }}
             />
             <Autocomplete
