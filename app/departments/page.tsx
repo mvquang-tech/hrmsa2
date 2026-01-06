@@ -107,7 +107,7 @@ export default function DepartmentsPage() {
     setEmployeesLoading(true);
     try {
       // fetch many employees for manager selection
-      const response = await fetch('/api/employees?limit=1000', { headers: { Authorization: `Bearer ${token}` } });
+      const response = await fetch('/api/employees/list?limit=1000', { headers: { Authorization: `Bearer ${token}` } });
       const data = await response.json();
       console.log('fetchEmployees response:', data);
       if (data.success && data.data && Array.isArray(data.data.data)) {
