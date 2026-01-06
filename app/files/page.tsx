@@ -99,7 +99,6 @@ export default function FilesPage() {
   const xhrMap = {} as Record<number, XMLHttpRequest | undefined>;
 
   // Search and filter state
-  const [searchTerm, setSearchTerm] = useState('');
   const [tagFilter, setTagFilter] = useState<string[]>([]);
   const [fileTypeFilter, setFileTypeFilter] = useState('');
 
